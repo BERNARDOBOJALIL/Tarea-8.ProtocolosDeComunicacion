@@ -1138,21 +1138,9 @@ curl https://tu-app.onrender.com/health
 
 ## Conclusiones
 
-### Logros Principales
+El proyecto concreto logró una arquitectura multiagente plenamente funcional en la que seis agentes especializados colaboran mediante cinco protocolos bien definidos (A2A, ACP, ANP, AGUI y MCP). Esta separación clara de responsabilidades permitió diseñar flujos de análisis, generación de alertas y preparación de vistas UI sin duplicar lógica. La integración con modelos de Google Gemini aportó valor añadido en forma de recomendaciones, validación contextual y proyecciones de gasto, mientras que la API desarrollada con FastAPI ofreció documentación automática, validación estricta y un punto de integración homogéneo para el frontend. El almacenamiento en PostgreSQL aseguró persistencia y consistencia de datos financieros y la modularidad del diseño deja abierta la extensión futura (nuevos agentes o protocolos) sin reescrituras profundas.
 
-1. **Arquitectura Multiagente Funcional**: Sistema con 6 agentes especializados trabajando en colaboración
-2. **Protocolos Implementados**: 5 protocolos diferentes (A2A, ACP, ANP, AGUI, MCP) con casos de uso específicos
-3. **Integración con IA**: Uso de Google Gemini para análisis inteligente y recomendaciones
-4. **API REST Completa**: FastAPI con documentación automática y validación de datos
-5. **Persistencia de Datos**: PostgreSQL en Render con modelos relacionales
-6. **Escalabilidad**: Diseño modular que permite agregar nuevos agentes y protocolos
-
-### Aprendizajes Clave
-
-- **Comunicación entre Agentes**: Los protocolos estandarizados facilitan la coordinación y mantenimiento
-- **División de Responsabilidades**: Cada agente tiene un rol específico, mejorando la modularidad
-- **IA como Herramienta**: Los modelos Gemini potencian las capacidades de análisis sin complejidad excesiva
-- **Diseño de APIs**: FastAPI permite desarrollo rápido con validación automática
+Entre los aprendizajes más significativos destacan la importancia de protocolos estandarizados para reducir fricción entre agentes y facilitar la trazabilidad de mensajes, el beneficio de la separación de roles para mantener el código legible y escalable, y el uso de IA como un componente de apoyo analítico más que como sustituto de reglas financieras básicas. Asimismo, se reforzó la idea de que un frontend desacoplado que consume estructuras ya formateadas (AGUI) simplifica la presentación y reduce errores; y que una API bien tipada acelera pruebas y diagnósticos. Finalmente, la recomputación frontal de ciertos KPIs (como gastos del mes cuando faltan datos consolidados) demostró ser una estrategia robusta para resiliencia de la interfaz.
 
 
 ## Referencias
