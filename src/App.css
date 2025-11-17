@@ -738,6 +738,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  background: #ffffff !important;
 }
 
 .login-card {
@@ -747,6 +748,48 @@ body {
   padding: 3rem;
   max-width: 400px;
   width: 100%;
+}
+
+.login-card.minimal {
+  padding: 2rem;
+  box-shadow: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.minimal-login-form label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.minimal-login-form input {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.minimal-login-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.minimal-tab {
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #ffffff;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.minimal-tab:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.btn-primary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
 }
 
 .login-card h1 {

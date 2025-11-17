@@ -84,23 +84,23 @@ export default function LoginSelector({ onLogin }) {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <h1>Finanzas Personales</h1>
-        <p className="subtitle">Sistema Multiagente Inteligente</p>
+    <div className="login-container minimal-bg">
+      <div className="login-card minimal">
+        <h1 style={{ fontWeight: 600, fontSize: '1.5rem', marginBottom: '0.75rem' }}>Finanzas Personales</h1>
+        <p className="subtitle" style={{ marginBottom: '1.5rem', fontSize: '0.85rem', color: '#64748b' }}>Accede o crea tu cuenta</p>
 
-        <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', margin: '0 0 1.25rem 0' }}>
           <button
-            className="btn-secondary"
-            style={{ flex: 1, background: tab === 'login' ? 'var(--surface-3)' : undefined }}
+            className="btn-secondary minimal-tab"
+            style={{ flex: 1, background: tab === 'login' ? '#f1f5f9' : '#ffffff', borderColor: tab === 'login' ? '#cbd5e1' : 'var(--border)' }}
             onClick={() => { setTab('login'); setError(null); }}
             disabled={loading}
           >
             Iniciar sesión
           </button>
           <button
-            className="btn-secondary"
-            style={{ flex: 1, background: tab === 'register' ? 'var(--surface-3)' : undefined }}
+            className="btn-secondary minimal-tab"
+            style={{ flex: 1, background: tab === 'register' ? '#f1f5f9' : '#ffffff', borderColor: tab === 'register' ? '#cbd5e1' : 'var(--border)' }}
             onClick={() => { setTab('register'); setError(null); }}
             disabled={loading}
           >
@@ -111,7 +111,7 @@ export default function LoginSelector({ onLogin }) {
         {error && <p className="error">{error}</p>}
 
         {tab === 'login' ? (
-          <form onSubmit={handleSubmitLogin} className="user-selector">
+          <form onSubmit={handleSubmitLogin} className="user-selector minimal-login-form">
             <label htmlFor="email">
               Email
               <input
@@ -141,7 +141,7 @@ export default function LoginSelector({ onLogin }) {
             </button>
           </form>
         ) : (
-          <form onSubmit={handleSubmitRegister} className="user-selector">
+          <form onSubmit={handleSubmitRegister} className="user-selector minimal-login-form">
             <h3 style={{ margin: '0 0 1rem 0' }}>Crear Nuevo Usuario</h3>
             <label htmlFor="nombre">
               Nombre completo
@@ -214,8 +214,8 @@ export default function LoginSelector({ onLogin }) {
           </form>
         )}
 
-        <p className="mt-2 text-center" style={{ fontSize: '0.875rem', color: '#64748b' }}>
-          🔐 Autenticación JWT habilitada
+        <p className="mt-2 text-center" style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+          Autenticación JWT habilitada
         </p>
       </div>
     </div>
