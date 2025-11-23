@@ -1,883 +1,839 @@
-import React, { useState } from 'react';
-import api from '../api/client';
+import React, { useState, useEffect } from 'react';
 import { Icon } from '../components/Icon';
-import DonutChart from '../components/DonutChart';
+import api from '../api/client';
 
-export default function AnalysisView({ userId }) {
-  const [days, setDays] = useState(30);
+// Vista reimaginada: un solo botón que llama al endpoint externo de balance
+// Se extraen únicamente los campos solicitados del JSON: status, message_id, protocol,
+// content_type, ingresos_totales, gastos_totales, balance, total_transacciones,
+// gastos_por_categoria, ingreso_mensual, timestamp y recomendaciones_principales.
+
+export default function AnalysisView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [analysisData, setAnalysisData] = useState(null);
-  const [showJson, setShowJson] = useState(false);
+  const [data, setData] = useState(null);
+  const [showRaw, setShowRaw] = useState(false);
+  const [usuarioId, setUsuarioId] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [userError, setUserError] = useState(null);
+  const [dias, setDias] = useState(30);
+  // Estados para presupuestos
+  const [budgetsLoading, setBudgetsLoading] = useState(false);
+  const [budgetsError, setBudgetsError] = useState(null);
+  const [budgetsData, setBudgetsData] = useState(null);
+  const [showBudgetsRaw, setShowBudgetsRaw] = useState(false);
+  // Estados para proceso completo
+  const [processLoading, setProcessLoading] = useState(false);
+  const [processError, setProcessError] = useState(null);
+  const [processData, setProcessData] = useState(null);
+  const [showProcessRaw, setShowProcessRaw] = useState(false);
+  const [showProcessModal, setShowProcessModal] = useState(false);
 
-  const guardUser = () => {
-    if (!userId) { alert('Selecciona un usuario primero'); return false; }
-    return true;
-  };
+  const ENDPOINT = 'https://api-multiagente.onrender.com/analisis/balance';
+  const BUDGETS_ENDPOINT = 'https://api-multiagente.onrender.com/analisis/presupuestos';
+  const COMPLETE_ENDPOINT = 'https://api-multiagente.onrender.com/analisis/completo';
 
-  const runCompleteAnalysis = async () => {
-    if (!guardUser()) return;
+  const doFetch = async () => {
+    if (!usuarioId) { setError('No autenticado: inicia sesión primero'); return; }
     setLoading(true);
     setError(null);
-    setAnalysisData(null);
-    
+    setData(null);
     try {
-      // Llamar a todos los endpoints en paralelo (incluye dashboard AGUI)
-      const [dashboard, balance, budgets, complete, recs] = await Promise.all([
-        api.getDashboard(userId),
-        api.analysisBalance(userId, days),
-        api.analysisBudgets(userId, days),
-        api.analysisComplete(userId, days),
-        api.recommendations(userId, 'optimizar_gastos')
-      ]);
-
-      setAnalysisData({ dashboard, balance, budgets, complete, recs });
+      const token = api.getToken();
+      const bodyPayload = { usuario_id: Number(usuarioId), periodo_dias: Number(dias) };
+      const res = await fetch(ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status} ${txt.slice(0,180)}`);
+      }
+      const json = await res.json();
+      setData(extract(json));
     } catch (e) {
-      const msg = e?.message || 'Error desconocido';
-      setError(msg);
+      setError(e.message || 'Error desconocido');
     } finally {
       setLoading(false);
     }
   };
 
-  // Utilidad para parsear valores numéricos que pueden venir como string con símbolos, comas, espacios.
-  const parseNumeric = (v) => {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'number') return isNaN(v) ? 0 : v;
-    if (typeof v === 'string') {
-      // Detectar formato: quitar símbolos de moneda y espacios.
-      // Estrategia: si hay más de un separador (coma/punto), asumimos que las comas son miles y dejamos el último punto como decimal.
-      let cleaned = v.trim();
-      // Reemplazar cualquier caracter no permitido (excepto dígitos, coma, punto, signo menos)
-      cleaned = cleaned.replace(/[^0-9.,-]/g, '');
-      // Si contiene ambos "," y "." decidir:
-      const hasComma = cleaned.includes(',');
-      const hasDot = cleaned.includes('.');
-      if (hasComma && hasDot) {
-        // Normalizar: quitar todas las comas (asumidas miles)
-        cleaned = cleaned.replace(/,/g, '');
-      } else if (hasComma && !hasDot) {
-        // Posible formato europeo: usar coma como decimal => reemplazar por punto.
-        cleaned = cleaned.replace(/,/g, '.');
+  const extract = (root) => {
+    if (!root || typeof root !== 'object') return null;
+
+    // Buscar objectos de interés dentro de task_results si existen
+    let mcpHistorical = null;
+    let mcpDirect = root?.response; // si viene directamente
+    const taskResults = root?.plan?.task_results || root?.task_results || [];
+    if (Array.isArray(taskResults)) {
+      for (const tr of taskResults) {
+        const r = tr?.response;
+        // historical analysis tipo MCP
+        if (r?.result?.content_type === 'historical_analysis') {
+          mcpHistorical = r;
+        }
+        // balance calculado ACP podría tener campo resultado plano
+        if (!mcpDirect && r?.result) mcpDirect = r; // fallback
       }
-      // Quitar múltiples puntos salvo último (ej: "12.345.67") -> considerar primer parte miles
-      const parts = cleaned.split('.');
-      if (parts.length > 2) {
-        const decimal = parts.pop();
-        cleaned = parts.join('') + '.' + decimal;
-      }
-      const num = Number(cleaned);
-      return isNaN(num) ? 0 : num;
     }
-    return 0;
-  };
 
-  // ACP balance (análisis/balance)
-  const extractBalanceACP = (payload) => {
-    const resultado = payload?.analisis?.resultado || payload?.resultado || null;
-    if (!resultado) return null;
-    const ingresos = Number(resultado.ingresos_totales ?? 0);
-    const gastos = Number(resultado.gastos_totales ?? 0);
-    const balance = Number(resultado.balance ?? (ingresos - gastos));
-    const totalTx = Number(resultado.total_transacciones ?? 0);
-    const categorias = resultado.gastos_por_categoria || {};
-    const totalGastosCat = Object.values(categorias).reduce((a, b) => a + Number(b || 0), 0);
-    const totalGastosBase = gastos || totalGastosCat || 1;
-    const analisisIA = resultado.analisis_ia || {};
-    const tendencia = (analisisIA.tendencia || '').toLowerCase();
-    return { origen: 'acp', ingresos, gastos, balance, totalTx, categorias, totalGastosBase, analisisIA, tendencia };
-  };
-
-  // Extract complete plan data from ANP task_results if present
-  const extractPlanData = (completePayload) => {
-    const plan = completePayload?.plan || null;
-    if (!plan || !plan.task_results) return null;
-    const subtareas = plan.plan?.subtareas || [];
-    const taskResults = plan.task_results || [];
-    return { subtareas, taskResults, estrategia: plan.plan?.estrategia || '' };
-  };
-
-  // AGUI dashboard: búsqueda flexible del resumen financiero y parseo robusto de números
-  const extractFinancialSummaryAGUI = (dashboardPayload) => {
-    if (!dashboardPayload || typeof dashboardPayload !== 'object') return null;
-    // Intentar extraer el objeto ui_data primero
-    const uiCandidates = [
-      dashboardPayload?.dashboard?.ui_data,
-      dashboardPayload?.response?.ui_data,
-      dashboardPayload?.data?.ui_data,
-      dashboardPayload?.ui_data
-    ].filter(Boolean);
-    let ui = uiCandidates[0] || null;
-    // Búsqueda profunda de ui_data si no existe
-    if (!ui) {
-      const searchUI = (obj, depth = 0) => {
-        if (!obj || typeof obj !== 'object' || depth > 6) return null;
-        if (obj.ui_data) return obj.ui_data;
+    const source = mcpHistorical || mcpDirect || null;
+    const result = source?.result || {};
+    const dataBlock = result?.data || source?.resultado || {};
+    // Buscar recomendaciones_principales en múltiples rutas conocidas
+    let recomendacionesPrincipales = root?.recomendaciones_principales
+      || root?.dashboard?.recomendaciones_principales
+      || root?.data?.recomendaciones_principales
+      || root?.ui_data?.dashboard?.recomendaciones_principales
+      || null;
+    if (!recomendacionesPrincipales && Array.isArray(taskResults)) {
+      for (const tr of taskResults) {
+        const r = tr?.response;
+        const cand = r?.ui_data?.dashboard?.recomendaciones_principales
+          || r?.dashboard?.recomendaciones_principales
+          || r?.data?.recomendaciones_principales
+          || null;
+        if (cand) { recomendacionesPrincipales = cand; break; }
+      }
+    }
+    // Búsqueda profunda genérica si aún no se encuentra
+    if (!recomendacionesPrincipales) {
+      const deepSearch = (obj, depth = 0) => {
+        if (!obj || typeof obj !== 'object' || depth > 8) return null;
+        if (obj.recomendaciones_principales && Array.isArray(obj.recomendaciones_principales.recomendaciones)) return obj.recomendaciones_principales;
         for (const k of Object.keys(obj)) {
-          const found = searchUI(obj[k], depth + 1);
+          const found = deepSearch(obj[k], depth + 1);
           if (found) return found;
         }
         return null;
       };
-      ui = searchUI(dashboardPayload);
+      recomendacionesPrincipales = deepSearch(root);
+    }
+    if (import.meta?.env?.DEV) {
+      console.log('[AnalysisView] recomendacionesPrincipales extraído:', recomendacionesPrincipales);
     }
 
-    // Dentro de ui, buscar resumen_financiero, y si no, un "resumen" simple
-    const dsh = ui?.dashboard || {};
-    const resumenFin = dsh.resumen_financiero || ui?.resumen_financiero || null;
-    const resumenSimple = ui?.resumen || null;
-    const resumen = resumenFin || resumenSimple;
-    if (!resumen) return null;
-
-    // Mapear a formato común
-    let ingresosValor = 0, gastosValor = 0, balanceValor = 0, totalTxValor = 0;
-    let ingresosDesc = '', gastosDesc = '', balanceDesc = '', balanceEstado = '', balanceAlerta = '', totalTxDesc = '';
-    let titulo = 'Resumen Financiero';
-    // Etiqueta de gastos cuando el valor del mes es texto (p.ej. "Pendiente ...")
-    let gastosLabel = '';
-
-    if (resumenFin) {
-      titulo = resumenFin.titulo || titulo;
-      // Tomar valores tal como vienen en el dashboard (manejar múltiples variantes)
-      const rawIngresos =
-        resumenFin.ingresos_totales?.valor ??
-        resumenFin.ingresos?.valor ??
-        resumenFin.ingresos ??
-        resumenFin.ingreso_mensual ??
-        ui?.resumen?.ingresos ?? 0;
-      // Preferir SIEMPRE el gasto del mes desde el dashboard si existe
-      const rawGastosMes = resumenFin.gastos_totales_mes_actual;
-      const rawGastos =
-        (rawGastosMes !== undefined ? rawGastosMes : (
-          resumenFin.gastos_totales?.valor ??
-          resumenFin.gastos?.valor ??
-          resumenFin.gastos ??
-          ui?.resumen?.gastos ?? 0
-        ));
-      const rawBalance =
-        resumenFin.balance?.valor ??
-        resumenFin.flujo_de_caja?.valor ??
-        resumenFin.flujo_de_caja ??
-        resumenFin.balance ??
-        (parseNumeric(rawIngresos) - parseNumeric(rawGastos));
-      const rawTx =
-        resumenFin.total_transacciones?.valor ??
-        resumenFin.total_transacciones ??
-        dsh?.tendencias_recientes?.transacciones_recientes ??
-        ui?.resumen?.total_transacciones ?? 0;
-
-      ingresosValor = parseNumeric(rawIngresos);
-      gastosValor = parseNumeric(rawGastos);
-      balanceValor = parseNumeric(rawBalance);
-      totalTxValor = parseNumeric(rawTx);
-
-      ingresosDesc = resumenFin.ingresos_totales?.descripcion || resumenFin.ingresos?.descripcion || '';
-      gastosDesc = resumenFin.gastos_totales?.descripcion || resumenFin.gastos?.descripcion || '';
-      // Si el gasto del mes existe pero es un texto no numérico (p.ej. "Pendiente ..."), conservarlo para UI
-      const gastosMesNum = parseNumeric(rawGastosMes);
-      const gastosMesStr = typeof rawGastosMes === 'string' ? rawGastosMes : '';
-      gastosLabel = (rawGastosMes !== undefined && gastosMesStr && gastosMesNum === 0) ? gastosMesStr : '';
-      balanceDesc = resumenFin.balance?.descripcion || resumenFin.flujo_de_caja?.descripcion || '';
-      balanceEstado = resumenFin.balance?.estado || '';
-      balanceAlerta = resumenFin.balance?.alerta || '';
-      totalTxDesc = resumenFin.total_transacciones?.descripcion || '';
-
-      // Si el dashboard trae detalles de presupuestos, calcular gastos del mes en el front
-      const ep = dsh?.estado_presupuestos || {};
-      const epArr = Array.isArray(ep.detalles) ? ep.detalles : (Array.isArray(ep.presupuestos) ? ep.presupuestos : []);
-      if (epArr.length > 0) {
-        const gastosCalc = epArr.reduce((acc, it) => acc + parseNumeric(it.gastado || it.monto_gastado || it.gastos || 0), 0);
-        const rawGastosMesNum = parseNumeric(rawGastosMes);
-        const rawGastosMesIsNonNumeric = typeof rawGastosMes === 'string' && !/[0-9]/.test(rawGastosMes);
-        if ((rawGastosMes === undefined || rawGastosMesIsNonNumeric || rawGastosMesNum === 0) && gastosCalc > 0) {
-          gastosValor = gastosCalc;
-          if (!gastosDesc) gastosDesc = 'Calculado desde presupuestos activos (dashboard)';
-        }
-        // Si el balance no viene numérico, recalcular con ingresos - gastos
-        const rawBalanceHasDigits = typeof rawBalance === 'number' || (typeof rawBalance === 'string' && /[0-9]/.test(rawBalance));
-        if (!rawBalanceHasDigits) {
-          balanceValor = parseNumeric(ingresosValor) - parseNumeric(gastosValor);
-        }
+    // Extraer analisis_ia (evaluacion_general, puntos_criticos, recomendaciones, tendencia)
+    let analisisIA = root?.analisis_ia
+      || result?.analisis_ia
+      || dataBlock?.analisis_ia
+      || source?.analisis_ia
+      || null;
+    if (!analisisIA && Array.isArray(taskResults)) {
+      for (const tr of taskResults) {
+        const cand = tr?.response?.analisis_ia || tr?.response?.resultado?.analisis_ia || null;
+        if (cand) { analisisIA = cand; break; }
       }
-    } else if (resumenSimple) {
-      ingresosValor = parseNumeric(resumenSimple.ingresos);
-      gastosValor = parseNumeric(resumenSimple.gastos);
-      balanceValor = parseNumeric(resumenSimple.balance !== undefined ? resumenSimple.balance : (ingresosValor - gastosValor));
-      // No hay descripciones en este formato
     }
-
-    const tendencia = (balanceEstado || '').toLowerCase().includes('negativo') || balanceValor < 0 ? 'negativa' : 'positiva';
-    const alertasAGUI = Array.isArray(ui?.alertas) ? ui.alertas : [];
-    const tendenciasAGUI = typeof ui?.tendencias === 'string' ? ui.tendencias : '';
-    const presupuestosAGUI = Array.isArray(ui?.presupuestos) ? ui.presupuestos : [];
-    const recomendacionesAGUI = Array.isArray(ui?.recomendaciones) ? ui.recomendaciones : [];
-    // Si hay ui_data.dashboard con más secciones
-    const dashSections = dsh || {};
-    const estadoPresupuestos = dashSections.estado_presupuestos || null;
-    const recomendacionesPrincipales = dashSections.recomendaciones_principales || null;
-    const tendenciasRecientes = dashSections.tendencias_recientes || null;
+    if (!analisisIA) {
+      const deepSearchIA = (obj, depth = 0) => {
+        if (!obj || typeof obj !== 'object' || depth > 10) return null;
+        if (obj.analisis_ia && (obj.analisis_ia.evaluacion_general || obj.analisis_ia.puntos_criticos)) return obj.analisis_ia;
+        for (const k of Object.keys(obj)) {
+          const found = deepSearchIA(obj[k], depth + 1);
+          if (found) return found;
+        }
+        return null;
+      };
+      analisisIA = deepSearchIA(root);
+    }
+    if (import.meta?.env?.DEV) {
+      console.log('[AnalysisView] analisisIA extraído:', analisisIA);
+    }
 
     return {
-      origen: 'agui',
-      titulo,
-      ingresos: ingresosValor,
-      ingresosDesc,
-      gastos: gastosValor,
-      gastosDesc,
-      balance: balanceValor,
-      balanceDesc,
-      balanceEstado,
-      balanceAlerta,
-      totalTx: totalTxValor,
-      totalTxDesc,
-      categorias: {},
-      analisisIA: {},
-      tendencia,
-      alertasAGUI,
-      tendenciasAGUI,
-      presupuestosAGUI,
-      recomendacionesAGUI,
-      gastosLabel,
-      estadoPresupuestos,
-      recomendacionesPrincipales,
-      tendenciasRecientes
+      status: source?.status || root?.status || null,
+      message_id: result?.message_id || null,
+      protocol: result?.protocol || source?.protocol_used || root?.protocol_used || null,
+      content_type: result?.content_type || null,
+      timestamp: result?.timestamp || null,
+      ingresos_totales: dataBlock?.ingresos_totales ?? null,
+      gastos_totales: dataBlock?.gastos_totales ?? null,
+      balance: dataBlock?.balance ?? null,
+      total_transacciones: dataBlock?.total_transacciones ?? null,
+      gastos_por_categoria: dataBlock?.gastos_por_categoria || {},
+      ingreso_mensual: dataBlock?.ingreso_mensual ?? null,
+      recomendaciones_titulo: recomendacionesPrincipales?.titulo || null,
+      recomendaciones: Array.isArray(recomendacionesPrincipales?.recomendaciones) ? recomendacionesPrincipales.recomendaciones : [] ,
+      recomendaciones_principales: recomendacionesPrincipales || null,
+      analisis_ia: analisisIA || null,
+      raw: root
     };
   };
 
-  const formatCurrency = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0);
-  
-  const extractBudgets = (payload) => {
-    const resultado = payload?.analisis?.resultado || payload?.resultado || null;
-    if (!resultado) return null;
-    const lista = Array.isArray(resultado.presupuestos) ? resultado.presupuestos : [];
-    const textoIA = resultado.analisis_ia || '';
-    const recomendaciones = Array.isArray(resultado.recomendaciones) ? resultado.recomendaciones : [];
-    return { lista, textoIA, recomendaciones };
+  // Extracción específica para presupuestos
+  const extractPresupuestos = (root) => {
+    if (!root || typeof root !== 'object') return null;
+    const taskResults = root?.plan?.task_results || root?.task_results || [];
+    let budgetsNode = null;
+    let sourceMeta = null;
+    if (Array.isArray(taskResults)) {
+      for (const tr of taskResults) {
+        const resp = tr?.response;
+        if (resp?.status === 'budgets_verified' && (resp?.resultado || resp?.result)) {
+          budgetsNode = resp.resultado || resp.result;
+          sourceMeta = resp;
+          break;
+        }
+      }
+    }
+    if (!budgetsNode && root?.response?.status === 'budgets_verified') {
+      budgetsNode = root.response.resultado || root.response.result || null;
+      sourceMeta = root.response;
+    }
+    const presupuestos = Array.isArray(budgetsNode?.presupuestos) ? budgetsNode.presupuestos : [];
+    let analisisIA = budgetsNode?.analisis_ia || null;
+    const recomendaciones = Array.isArray(budgetsNode?.recomendaciones) ? budgetsNode.recomendaciones : [];
+    if (!analisisIA) {
+      const deepSearch = (obj, depth=0) => {
+        if (!obj || typeof obj !== 'object' || depth > 8) return null;
+        if (obj.analisis_ia) return obj.analisis_ia;
+        for (const k of Object.keys(obj)) {
+          const found = deepSearch(obj[k], depth+1);
+          if (found) return found;
+        }
+        return null;
+      };
+      analisisIA = deepSearch(root);
+    }
+    return {
+      presupuestos,
+      analisis_ia: analisisIA,
+      recomendaciones,
+      status: sourceMeta?.status || root?.status || null,
+      protocol: sourceMeta?.protocol_used || root?.protocol_used || null,
+      timestamp: sourceMeta?.result?.timestamp || sourceMeta?.timestamp || null,
+      message_id: sourceMeta?.result?.message_id || null,
+      raw: root
+    };
   };
 
-  const extractRecommendations = (payload) => {
-    const insights = payload?.insights?.insights?.insights || [];
-    const sugerencias = payload?.insights?.insights?.sugerencias || [];
-    const alertas = payload?.insights?.insights?.alertas || [];
-    const comparaciones = payload?.insights?.insights?.comparaciones || {};
-    const predicciones = payload?.prediccion?.prediccion?.predicciones || [];
-    const tendencia = payload?.prediccion?.prediccion?.tendencia_general || '';
-    const factores = payload?.prediccion?.prediccion?.factores_considerados || [];
-    return { insights, sugerencias, alertas, comparaciones, predicciones, tendencia, factores };
+  const doFetchPresupuestos = async () => {
+    if (!usuarioId) { setBudgetsError('No autenticado: inicia sesión primero'); return; }
+    setBudgetsLoading(true);
+    setBudgetsError(null);
+    setBudgetsData(null);
+    try {
+      const token = api.getToken();
+      const res = await fetch(BUDGETS_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ usuario_id: Number(usuarioId), periodo_dias: Number(dias) })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status} ${txt.slice(0,180)}`);
+      }
+      const json = await res.json();
+      setBudgetsData(extractPresupuestos(json));
+    } catch (e) {
+      setBudgetsError(e.message || 'Error desconocido');
+    } finally {
+      setBudgetsLoading(false);
+    }
   };
+
+  // Extracción para análisis completo: subtareas + task_results
+  const extractProceso = (root) => {
+    if (!root || typeof root !== 'object') return null;
+    const subtareas = root?.plan?.plan?.subtareas || root?.plan?.subtareas || [];
+    const taskResults = root?.plan?.task_results || root?.task_results || [];
+    const tareasEjecutadas = Array.isArray(taskResults) ? taskResults.map(tr => {
+      const tarea = tr?.tarea || {};
+      const resp = tr?.response || {};
+      return {
+        id: tarea.id || null,
+        tipo: tarea.tipo || null,
+        agente: tarea.agente || null,
+        prioridad: tarea.prioridad || null,
+        status: resp.status || null,
+        protocol_used: resp.protocol_used || null,
+        mensaje_alerta: resp.alerta?.mensaje || null,
+        resumen_ui: resp.ui_data?.resumen || null,
+        health: resp.health || null
+      };
+    }) : [];
+    return {
+      estrategia: root?.plan?.plan?.estrategia || null,
+      subtareas: Array.isArray(subtareas) ? subtareas : [],
+      tareas_ejecutadas: tareasEjecutadas,
+      status: root?.status || null,
+      protocol: root?.protocol_used || null,
+      raw: root
+    };
+  };
+
+  const doFetchProceso = async () => {
+    if (!usuarioId) { setProcessError('No autenticado: inicia sesión primero'); return; }
+    setProcessLoading(true);
+    setProcessError(null);
+    setProcessData(null);
+    try {
+      const token = api.getToken();
+      const res = await fetch(COMPLETE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ usuario_id: Number(usuarioId), periodo_dias: Number(dias) })
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status} ${txt.slice(0,180)}`);
+      }
+      const json = await res.json();
+      setProcessData(extractProceso(json));
+    } catch (e) {
+      setProcessError(e.message || 'Error desconocido');
+    } finally {
+      setProcessLoading(false);
+    }
+  };
+
+  const formatCurrency = (v) => {
+    if (v === null || v === undefined || v === '') return '—';
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(v);
+  };
+
+  // Obtener usuario autenticado al montar (si hay token)
+  useEffect(() => {
+    const token = api.getToken();
+    if (!token) { setUserLoading(false); setUserError('No hay sesión activa'); return; }
+    (async () => {
+      try {
+        setUserLoading(true);
+        const me = await api.authMe();
+        if (me?.id) setUsuarioId(me.id);
+        else setUserError('No se pudo obtener usuario');
+      } catch (e) {
+        setUserError('Error al obtener usuario');
+      } finally {
+        setUserLoading(false);
+      }
+    })();
+  }, []);
 
   return (
     <div className="view">
-      <h2>Análisis Completo (IA)</h2>
-      <div className="simple-form">
-        <label>Días
-          <input type="number" min={1} max={365} value={days} onChange={e => setDays(parseInt(e.target.value || '30', 10))} />
-        </label>
-        <button className="btn-primary" onClick={runCompleteAnalysis} disabled={loading}>
-          {loading ? 'Analizando...' : 'Realizar Análisis Completo'}
-        </button>
-      </div>
-      {loading && <p>Cargando análisis completo...</p>}
-      {error && <p className="error">{error}</p>}
-
-      {!analysisData && !loading && !error && (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <Icon name="brain" size={48} style={{ color: 'var(--text-tertiary)', marginBottom: '1rem' }} />
-          <h3 style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>No hay análisis disponible</h3>
-          <p style={{ color: 'var(--text-tertiary)' }}>Haz clic en "Realizar Análisis Completo" para obtener información detallada sobre tus finanzas</p>
+      <h2>Análisis Financiero</h2>
+      
+      {/* Panel de Control */}
+      <div className="card" style={{ padding:'1.5rem', marginBottom:'1.5rem' }}>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'1.25rem', alignItems:'center', justifyContent:'space-between' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+              <label style={{ fontSize:'0.75rem', fontWeight:600, color:'var(--text-secondary)' }}>Periodo</label>
+              <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                <input
+                  type="number"
+                  value={dias}
+                  min={1}
+                  max={365}
+                  onChange={e=>setDias(e.target.value)}
+                  style={{
+                    width:90,
+                    padding:'0.65rem 0.75rem',
+                    fontSize:'0.875rem',
+                    fontWeight:500,
+                    border:'2px solid var(--border)',
+                    borderRadius:'8px',
+                    background:'var(--background)',
+                    color:'var(--text-primary)',
+                    outline:'none',
+                    transition:'all 0.2s'
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                />
+                <span style={{ fontSize:'0.875rem', color:'var(--text-secondary)', fontWeight:500 }}>días</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ display:'flex', gap:'0.75rem', flexWrap:'wrap' }}>
+            <button
+              onClick={doFetch}
+              disabled={loading || userLoading || !usuarioId}
+              className="btn"
+              style={{
+                padding:'0.75rem 1.5rem',
+                fontSize:'0.875rem',
+                fontWeight:600,
+                borderRadius:'8px',
+                background: loading ? 'var(--surface-2)' : 'var(--primary)',
+                color: '#fff',
+                border:'none',
+                cursor: loading || userLoading || !usuarioId ? 'not-allowed' : 'pointer',
+                opacity: loading || userLoading || !usuarioId ? 0.6 : 1,
+                display:'flex',
+                alignItems:'center',
+                gap:'0.5rem',
+                transition:'all 0.2s',
+                boxShadow:'0 2px 8px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={e => { if(!loading && !userLoading && usuarioId) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <Icon name="trending-up" size={18} />
+              {loading ? 'Analizando...' : 'Análisis Balance'}
+            </button>
+            
+            <button
+              onClick={doFetchPresupuestos}
+              disabled={budgetsLoading || userLoading || !usuarioId}
+              className="btn-secondary"
+              style={{
+                padding:'0.75rem 1.5rem',
+                fontSize:'0.875rem',
+                fontWeight:600,
+                borderRadius:'8px',
+                background: budgetsLoading ? 'var(--surface-2)' : 'var(--background)',
+                color: 'var(--text-primary)',
+                border:'2px solid var(--border)',
+                cursor: budgetsLoading || userLoading || !usuarioId ? 'not-allowed' : 'pointer',
+                opacity: budgetsLoading || userLoading || !usuarioId ? 0.6 : 1,
+                display:'flex',
+                alignItems:'center',
+                gap:'0.5rem',
+                transition:'all 0.2s'
+              }}
+              onMouseEnter={e => { if(!budgetsLoading && !userLoading && usuarioId) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <Icon name="list" size={18} />
+              {budgetsLoading ? 'Analizando...' : 'Presupuestos'}
+            </button>
+            
+            <button
+              onClick={() => { doFetchProceso(); setShowProcessModal(true); }}
+              disabled={processLoading || userLoading || !usuarioId}
+              title="Ver proceso completo (plan y ejecución)"
+              className="btn-secondary"
+              style={{
+                padding:'0.75rem 1rem',
+                fontSize:'0.875rem',
+                fontWeight:600,
+                borderRadius:'8px',
+                background: processLoading ? 'var(--surface-2)' : 'var(--background)',
+                color: 'var(--text-primary)',
+                border:'2px solid var(--border)',
+                cursor: processLoading || userLoading || !usuarioId ? 'not-allowed' : 'pointer',
+                opacity: processLoading || userLoading || !usuarioId ? 0.6 : 1,
+                display:'flex',
+                alignItems:'center',
+                gap:'0.5rem',
+                transition:'all 0.2s'
+              }}
+              onMouseEnter={e => { if(!processLoading && !userLoading && usuarioId) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'translateY(-2px)'; } }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <Icon name="layers" size={18} />
+              {processLoading ? 'Cargando...' : 'Proceso Completo'}
+            </button>
+          </div>
         </div>
-      )}
-      {analysisData && (() => {
-        const aguiSummary = extractFinancialSummaryAGUI(analysisData.dashboard);
-        const b = aguiSummary || extractBalanceACP(analysisData.balance);
-        const budgets = extractBudgets(analysisData.budgets);
-        const rec = extractRecommendations(analysisData.recs);
-        const planData = extractPlanData(analysisData.complete);
-        const ia = b?.analisisIA || {};
-        const categoriasEntries = b && b.origen === 'acp' ? Object.entries(b.categorias || {}) : [];
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Resumen / Balance */}
-            {b && (
-              <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ margin: 0 }}>{b.origen === 'agui' ? (b.titulo || 'Resumen Financiero') : 'Balance Financiero'}</h3>
-                  <span className={`budget-status ${(b.tendencia === 'positiva' || b.balance >= 0) ? 'ok' : 'danger'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <Icon name={b.balance >= 0 ? 'trendingUp' : 'trendingDown'} size={18} />
-                    {(b.balance >= 0 ? 'Positivo' : 'Negativo')}
-                  </span>
-                </div>
-                {b.balanceAlerta && (
-                  <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(225,29,72,0.08)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--danger)' }}>
-                    <Icon name="alertTriangle" size={14} /> {b.balanceAlerta}
-                  </div>
-                )}
-                {Array.isArray(b.alertasAGUI) && b.alertasAGUI.length > 0 && (
-                  <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(251,146,60,0.08)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-sm)' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                      <Icon name="alertTriangle" size={14} style={{ color:'var(--warning)' }} />
-                      <strong style={{ fontSize:'0.85rem' }}>Alertas</strong>
-                    </div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      {b.alertasAGUI.map((al,i)=>(
-                        <div key={i} style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>{typeof al==='string'? al : JSON.stringify(al)}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {b.tendenciasAGUI && (
-                  <div style={{ marginBottom: '1rem', padding: '0.6rem', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color:'var(--text-secondary)' }}>
-                    {b.tendenciasAGUI}
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: categoriasEntries.length ? '1.5rem' : '0.5rem' }}>
-                  <div className="card stat-card" style={{ background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <Icon name="arrowUp" size={16} style={{ color: 'var(--secondary)' }} />
-                      <div className="stat-label">Ingresos</div>
-                    </div>
-                    <div className="stat-value" style={{ color: 'var(--secondary)' }}>{formatCurrency(b.ingresos)}</div>
-                    {b.ingresosDesc && <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>{b.ingresosDesc}</div>}
-                  </div>
-                  <div className="card stat-card" style={{ background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.1) 0%, transparent 100%)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <Icon name="arrowDown" size={16} style={{ color: 'var(--danger)' }} />
-                      <div className="stat-label">Gastos</div>
-                    </div>
-                    {b.gastosLabel && b.gastos === 0 ? (
-                      <div className="stat-value" style={{ color: 'var(--danger)', fontSize:'0.9rem' }}>{b.gastosLabel}</div>
-                    ) : (
-                      <div className="stat-value" style={{ color: 'var(--danger)' }}>{formatCurrency(b.gastos)}</div>
-                    )}
-                    {b.gastosDesc && <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>{b.gastosDesc}</div>}
-                  </div>
-                  <div className="card stat-card" style={{ background: b.balance >= 0 ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, transparent 100%)' : 'linear-gradient(135deg, rgba(225, 29, 72, 0.05) 0%, transparent 100%)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <Icon name={b.balance >= 0 ? 'check' : 'alertTriangle'} size={16} style={{ color: b.balance >= 0 ? 'var(--secondary)' : 'var(--danger)' }} />
-                      <div className="stat-label">Balance</div>
-                    </div>
-                    <div className="stat-value" style={{ color: b.balance >= 0 ? 'var(--secondary)' : 'var(--danger)' }}>{formatCurrency(b.balance)}</div>
-                    {b.balanceDesc && <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>{b.balanceDesc}</div>}
-                  </div>
-                  <div className="card stat-card">
-                    <div className="stat-label">Transacciones</div>
-                    <div className="stat-value">{b.totalTx}</div>
-                    {b.totalTxDesc && <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>{b.totalTxDesc}</div>}
-                  </div>
-                </div>
-                {categoriasEntries.length > 0 && (() => {
-                  const sorted = [...categoriasEntries].sort((a,b2)=>Number(b2[1])-Number(a[1]));
-                  const palette = ['#e11d48','#f59e0b','#6366f1','#06b6d4','#22c55e','#84cc16','#f97316','#a855f7'];
-                  const slices = sorted.map(([cat,val],i)=>({ value:Number(val||0), color:palette[i%palette.length], label:cat }));
+      </div>
+      
+      {error && <p className="error" style={{ marginBottom:'1rem' }}>{error}</p>}
+      {budgetsError && <p className="error" style={{ marginBottom:'1rem' }}>{budgetsError}</p>}
+      {processError && <p className="error" style={{ marginBottom:'1rem' }}>{processError}</p>}
+      
+      {/* Resultados */}
+      <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+        {/* Balance */}
+        {data && (
+          <div className="card" style={{ padding:'1.5rem', border:'1px solid var(--border)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+              <h3 style={{ margin:0, display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                <Icon name="trending-up" size={20} style={{ color:'var(--primary)' }} />
+                Análisis de Balance
+              </h3>
+              <button
+                onClick={()=>setShowRaw(s=>!s)}
+                style={{
+                  padding:'0.4rem 0.7rem',
+                  fontSize:'0.7rem',
+                  border:'1px solid var(--border)',
+                  borderRadius:'6px',
+                  background:'var(--surface)',
+                  color:'var(--text-secondary)',
+                  cursor:'pointer',
+                  transition:'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
+              >
+                {showRaw ? 'Ocultar' : 'Ver'} JSON
+              </button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span className={`budget-status ${data.balance >= 0 ? 'ok' : 'danger'}`} style={{ fontSize:'0.7rem' }}>
+                  {data.balance >= 0 ? 'Balance Positivo' : 'Balance Negativo'}
+                </span>
+              </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:'0.75rem' }}>
+              <div className="card stat-card" style={{ padding:'0.75rem' }}>
+                <div className="stat-label">Ingresos Totales</div>
+                <div className="stat-value" style={{ fontSize:'1.1rem' }}>{formatCurrency(data.ingresos_totales)}</div>
+              </div>
+              <div className="card stat-card" style={{ padding:'0.75rem' }}>
+                <div className="stat-label">Gastos Totales</div>
+                <div className="stat-value" style={{ fontSize:'1.1rem', color:'var(--danger)' }}>{formatCurrency(data.gastos_totales)}</div>
+              </div>
+              <div className="card stat-card" style={{ padding:'0.75rem' }}>
+                <div className="stat-label">Balance</div>
+                <div className="stat-value" style={{ fontSize:'1.1rem', color: data.balance >=0 ? 'var(--secondary)' : 'var(--danger)' }}>{formatCurrency(data.balance)}</div>
+              </div>
+              <div className="card stat-card" style={{ padding:'0.75rem' }}>
+                <div className="stat-label">Transacciones</div>
+                <div className="stat-value" style={{ fontSize:'1.1rem' }}>{data.total_transacciones ?? '—'}</div>
+              </div>
+              <div className="card stat-card" style={{ padding:'0.75rem' }}>
+                <div className="stat-label">Ingreso Mensual</div>
+                <div className="stat-value" style={{ fontSize:'1.1rem' }}>{formatCurrency(data.ingreso_mensual)}</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginTop:'0.5rem' }}>
+              <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)' }}>status: <strong>{data.status || '—'}</strong></div>
+              <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)' }}>protocol: <strong>{data.protocol || '—'}</strong> / content_type: <strong>{data.content_type || '—'}</strong></div>
+              <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)' }}>message_id: <strong>{data.message_id || '—'}</strong></div>
+              <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)' }}>timestamp: <strong>{data.timestamp || '—'}</strong></div>
+            </div>
+          </div>
+          {data.gastos_por_categoria && Object.keys(data.gastos_por_categoria).length > 0 && (
+            <div className="card" style={{ padding:'1.25rem' }}>
+              <h3 style={{ margin:'0 0 1rem 0' }}>Gastos por Categoría</h3>
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                {Object.entries(data.gastos_por_categoria).map(([cat,val])=>{
+                  const porcentaje = data.gastos_totales ? ((val / data.gastos_totales) * 100) : 0;
                   return (
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <h4 style={{ margin: '0 0 1rem 0' }}>Distribución de Gastos</h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1.5rem', alignItems: 'start' }}>
-                        <DonutChart
-                          slices={slices}
-                          size={240}
-                          thickness={34}
-                          center={
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Gasto Total</div>
-                              <div style={{ fontWeight:700, fontSize:'1.15rem' }}>{formatCurrency(b.totalGastosBase)}</div>
-                            </div>
-                          }
-                          ariaLabel="Distribución de gastos por categoría"
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.75rem' }}>
-                          {sorted.map(([cat,val],i)=>{
-                            const pct = b.totalGastosBase ? (Number(val||0)/b.totalGastosBase)*100 : 0;
-                            return (
-                              <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.4rem 0.5rem', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)' }}>
-                                <span style={{ width: 10, height: 10, borderRadius: '50%', background: palette[i%palette.length], flexShrink: 0 }} />
-                                <span style={{ flex: 1, textTransform: 'capitalize' }}>{cat}</span>
-                                <strong style={{ fontSize: '0.7rem' }}>{formatCurrency(val)}</strong>
-                                <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>{pct.toFixed(1)}%</span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    <div key={cat} style={{ display:'flex', alignItems:'center', gap:'0.75rem', fontSize:'0.75rem' }}>
+                      <span style={{ width:10, height:10, borderRadius:'50%', background:'var(--primary)' }} />
+                      <span style={{ flex:1, textTransform:'capitalize' }}>{cat}</span>
+                      <strong>{formatCurrency(val)}</strong>
+                      <span style={{ color:'var(--text-tertiary)' }}>{porcentaje.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {data.recomendaciones_principales && data.recomendaciones_principales.recomendaciones && data.recomendaciones_principales.recomendaciones.length > 0 && (
+            <div className="card" style={{ padding:'1.25rem' }}>
+              <h3 style={{ margin:'0 0 1rem 0' }}>{data.recomendaciones_principales.titulo || 'Recomendaciones Principales'}</h3>
+              <ol style={{ margin:0, paddingLeft:'1.1rem', display:'flex', flexDirection:'column', gap:'0.55rem', fontSize:'0.75rem' }}>
+                {data.recomendaciones_principales.recomendaciones.map((item,i)=>{
+                  // Si es string, mostrar directamente
+                  if (typeof item === 'string') {
+                    return (
+                      <li key={i} style={{ lineHeight:1.35, color:'var(--text-secondary)' }}>{item}</li>
+                    );
+                  }
+                  // Si es objeto, extraer campos conocidos
+                  const texto = item.descripcion || item.texto || item.recomendacion || item.mensaje || JSON.stringify(item);
+                  const prioridad = (item.prioridad || '').toLowerCase();
+                  let badgeColor = 'var(--secondary)';
+                  if (prioridad === 'alta') badgeColor = 'var(--danger)';
+                  else if (prioridad === 'media') badgeColor = 'var(--warning)';
+                  return (
+                    <li key={i} style={{ lineHeight:1.35, color:'var(--text-secondary)', display:'flex', flexDirection:'column', gap:'0.3rem' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+                        <Icon name="lightbulb" size={12} style={{ color:badgeColor }} />
+                        <span style={{ flex:1 }}>{texto}</span>
+                        {prioridad && (
+                          <span style={{ fontSize:'0.55rem', padding:'0.15rem 0.4rem', borderRadius:'999px', background: prioridad==='alta' ? 'rgba(225,29,72,0.15)' : prioridad==='media' ? 'rgba(251,146,60,0.2)' : 'rgba(107,114,128,0.2)', color: badgeColor, fontWeight:600 }}>
+                            {prioridad.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      {item.id && <div style={{ fontSize:'0.55rem', color:'var(--text-tertiary)' }}>ID: {item.id}</div>}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
+          {data.analisis_ia && (
+            <div className="card" style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.9rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.75rem' }}>
+                <h3 style={{ margin:0 }}>Análisis IA</h3>
+                {data.analisis_ia.tendencia && (
+                  <span style={{ fontSize:'0.6rem', padding:'0.3rem 0.55rem', borderRadius:'999px', fontWeight:600,
+                    background: (data.analisis_ia.tendencia.toLowerCase().includes('negativa') ? 'rgba(225,29,72,0.15)' : data.analisis_ia.tendencia.toLowerCase().includes('positiva') ? 'rgba(16,185,129,0.15)' : 'var(--surface-2)'),
+                    color: (data.analisis_ia.tendencia.toLowerCase().includes('negativa') ? 'var(--danger)' : data.analisis_ia.tendencia.toLowerCase().includes('positiva') ? 'var(--secondary)' : 'var(--text-secondary)')
+                  }}>{data.analisis_ia.tendencia}</span>
+                )}
+              </div>
+              {data.analisis_ia.evaluacion_general && (
+                <div style={{ fontSize:'0.72rem', lineHeight:1.4, background:'var(--surface-2)', padding:'0.7rem 0.75rem', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
+                  <strong style={{ display:'block', marginBottom:'0.35rem', fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>Evaluación General</strong>
+                  {data.analisis_ia.evaluacion_general}
+                </div>
+              )}
+              {Array.isArray(data.analisis_ia.puntos_criticos) && data.analisis_ia.puntos_criticos.length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+                  <strong style={{ fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>Puntos Críticos</strong>
+                  <ul style={{ margin:0, paddingLeft:'1rem', display:'flex', flexDirection:'column', gap:'0.5rem', fontSize:'0.7rem' }}>
+                    {data.analisis_ia.puntos_criticos.map((p,i)=>(
+                      <li key={i} style={{ lineHeight:1.35, display:'flex', gap:'0.45rem' }}>
+                        <Icon name="alert" size={12} style={{ color:'var(--danger)', marginTop:2 }} />
+                        <span style={{ flex:1 }}>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(data.analisis_ia.recomendaciones) && data.analisis_ia.recomendaciones.length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+                  <strong style={{ fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>Recomendaciones IA</strong>
+                  <ol style={{ margin:0, paddingLeft:'1rem', display:'flex', flexDirection:'column', gap:'0.5rem', fontSize:'0.7rem' }}>
+                    {data.analisis_ia.recomendaciones.map((r,i)=>(
+                      <li key={i} style={{ lineHeight:1.35, display:'flex', gap:'0.45rem' }}>
+                        <Icon name="check" size={12} style={{ color:'var(--secondary)', marginTop:2 }} />
+                        <span style={{ flex:1 }}>{r}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+          {showRaw && (
+            <div className="card" style={{ padding:'1rem' }}>
+              <h3 style={{ margin:'0 0 0.75rem 0' }}>Raw JSON</h3>
+              <pre style={{ maxHeight:400, overflow:'auto', fontSize:'0.65rem', background:'var(--surface-2)', padding:'0.75rem', borderRadius:'var(--radius-sm)' }}>{JSON.stringify(data.raw, null, 2)}</pre>
+            </div>
+          )}
+          </div>
+        )}
+        
+        {/* Presupuestos */}
+        {budgetsData && (
+          <div className="card" style={{ padding:'1.5rem', border:'1px solid var(--border)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+              <h3 style={{ margin:0, display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                <Icon name="list" size={20} style={{ color:'var(--primary)' }} />
+                Análisis de Presupuestos
+              </h3>
+              <button
+                onClick={()=>setShowBudgetsRaw(s=>!s)}
+                style={{
+                  padding:'0.4rem 0.7rem',
+                  fontSize:'0.7rem',
+                  border:'1px solid var(--border)',
+                  borderRadius:'6px',
+                  background:'var(--surface)',
+                  color:'var(--text-secondary)',
+                  cursor:'pointer',
+                  transition:'all 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--surface)'}
+              >
+                {showBudgetsRaw ? 'Ocultar' : 'Ver'} JSON
+              </button>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+          {budgetsData.presupuestos && budgetsData.presupuestos.length > 0 && (
+            <div style={{ marginBottom:'1rem' }}>
+              <h4 style={{ margin:'0 0 0.75rem 0', fontSize:'0.85rem' }}>Presupuestos Verificados</h4>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:'0.9rem' }}>
+                {budgetsData.presupuestos.map((p,i)=>{
+                  const pct = p.porcentaje || 0;
+                  const estado = (p.estado || '').toLowerCase();
+                  let badgeColor = 'var(--secondary)';
+                  let badgeBg = 'rgba(16,185,129,0.15)';
+                  if (estado === 'excedido') { badgeColor='var(--danger)'; badgeBg='rgba(225,29,72,0.15)'; }
+                  else if (estado === 'dentro') { badgeColor='var(--secondary)'; badgeBg='rgba(16,185,129,0.15)'; }
+                  return (
+                    <div key={i} className="card" style={{ padding:'0.75rem', display:'flex', flexDirection:'column', gap:'0.45rem', border:'1px solid var(--border)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.5rem' }}>
+                        <strong style={{ fontSize:'0.7rem', textTransform:'capitalize' }}>{p.categoria}</strong>
+                        <span style={{ fontSize:'0.55rem', padding:'0.25rem 0.45rem', borderRadius:'999px', background:badgeBg, color:badgeColor, fontWeight:600 }}>{p.estado}</span>
+                      </div>
+                      <div style={{ fontSize:'0.65rem', color:'var(--text-tertiary)' }}>Límite: <strong>{formatCurrency(p.limite)}</strong></div>
+                      <div style={{ fontSize:'0.65rem', color:'var(--text-tertiary)' }}>Gastado: <strong style={{ color: pct>=100 ? 'var(--danger)' : pct>=75 ? 'var(--warning)' : 'var(--text-secondary)' }}>{formatCurrency(p.gastado)}</strong></div>
+                      <div style={{ height:6, background:'var(--surface-2)', borderRadius:4, overflow:'hidden', marginTop:4 }}>
+                        <div style={{ height:'100%', width:`${Math.min(pct,100)}%`, background: pct>=100 ? 'var(--danger)' : pct>=75 ? 'var(--warning)' : 'var(--secondary)', transition:'width .4s' }} />
+                      </div>
+                      <div style={{ fontSize:'0.55rem', color:'var(--text-tertiary)', display:'flex', justifyContent:'space-between' }}>
+                        <span>{pct.toFixed(2)}%</span>
+                        <span>{p.estado}</span>
                       </div>
                     </div>
                   );
-                })()}
-                {ia.evaluacion_general && (
-                  <div style={{ marginTop: '1.5rem', display: 'grid', gap: '1rem' }}>
-                    <div style={{ padding: '1rem', background: 'var(--surface-2)', borderLeft: '3px solid var(--primary)', borderRadius: 'var(--radius-md)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <Icon name="fileText" size={16} style={{ color: 'var(--primary)' }} />
-                        <strong style={{ fontSize: '0.85rem' }}>Evaluación General</strong>
-                      </div>
-                      <p style={{ margin:0, fontSize: '0.8rem', lineHeight:1.4, color: 'var(--text-secondary)' }}>{ia.evaluacion_general}</p>
-                    </div>
-                    {Array.isArray(ia.puntos_criticos) && ia.puntos_criticos.length > 0 && (
-                      <div style={{ padding: '1rem', background: 'var(--surface-2)', borderLeft: '3px solid var(--danger)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <Icon name="alertTriangle" size={16} style={{ color: 'var(--danger)' }} />
-                          <strong style={{ fontSize: '0.85rem' }}>Puntos Críticos</strong>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {ia.puntos_criticos.map((p,i)=>(
-                            <div key={i} style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-                              <span style={{ color: 'var(--danger)', marginTop: '0.15rem' }}>•</span>
-                              <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{p}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {Array.isArray(ia.recomendaciones) && ia.recomendaciones.length > 0 && (
-                      <div style={{ padding: '1rem', background: 'var(--surface-2)', borderLeft: '3px solid var(--secondary)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                          <Icon name="lightbulb" size={16} style={{ color: 'var(--secondary)' }} />
-                          <strong style={{ fontSize: '0.85rem' }}>Recomendaciones</strong>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {ia.recomendaciones.map((r,i)=>(
-                            <div key={i} style={{ display:'flex', gap:'0.5rem', fontSize:'0.75rem' }}>
-                              <span style={{ color:'var(--secondary)', marginTop:'0.15rem' }}>✓</span>
-                              <span style={{ color:'var(--text-secondary)', lineHeight:1.4 }}>{r}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                })}
+              </div>
+              <div style={{ fontSize:'0.6rem', marginTop:'0.75rem', color:'var(--text-tertiary)' }}>status: <strong>{budgetsData.status || '—'}</strong> • protocol: <strong>{budgetsData.protocol || '—'}</strong> • message_id: <strong>{budgetsData.message_id || '—'}</strong> • timestamp: <strong>{budgetsData.timestamp || '—'}</strong></div>
+            </div>
+          )}
+          {budgetsData.analisis_ia && (
+            <div style={{ marginBottom:'1rem' }}>
+              <h4 style={{ margin:'0 0 0.75rem 0', fontSize:'0.85rem' }}>Narrativa Presupuestos IA</h4>
+              <div style={{ fontSize:'0.68rem', lineHeight:1.4, background:'var(--surface-2)', padding:'0.8rem', borderRadius:'6px', border:'1px solid var(--border)' }}>
+                {typeof budgetsData.analisis_ia === 'string' ? (
+                  <div dangerouslySetInnerHTML={{ __html: budgetsData.analisis_ia.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br/>') }} />
+                ) : (
+                  <pre style={{ fontSize:'0.6rem', whiteSpace:'pre-wrap' }}>{JSON.stringify(budgetsData.analisis_ia, null, 2)}</pre>
                 )}
               </div>
-            )}
-            {/* Presupuestos */}
-            {budgets && budgets.lista.length > 0 && (
-              <div className="card">
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
-                  <h3 style={{ margin:0 }}>Estado de Presupuestos</h3>
-                  <span className={`budget-status ${budgets.lista.some(p => (p.estado||'').toLowerCase()==='excedido') ? 'danger' : 'ok'}`}>{budgets.lista.some(p => (p.estado||'').toLowerCase()==='excedido') ? 'Requiere Atención' : 'Saludable'}</span>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:'1rem', marginBottom:'1rem' }}>
-                  {budgets.lista.map((p,i)=>{
-                    const percent = Math.round(p.porcentaje ?? ((p.gastado / (p.limite || 1))*100));
-                    const estado = (p.estado||'').toLowerCase();
-                    let fillClass='';
-                    if(percent>=100) fillClass='danger'; else if(percent>=75) fillClass='warning';
-                    return (
-                      <div key={i} className="budget-item" style={{ border:'1px solid var(--border)', borderRadius:'var(--radius-md)', padding:'1rem' }}>
-                        <div className="budget-header" style={{ display:'flex', justifyContent:'space-between', marginBottom:'0.4rem' }}>
-                          <div className="budget-category" style={{ textTransform:'capitalize' }}>{p.categoria}</div>
-                          <div className="budget-status" style={{ color: fillClass==='danger' ? 'var(--danger)' : fillClass==='warning' ? 'var(--warning)' : 'var(--secondary)' }}>
-                            {estado==='excedido' ? 'Excedido' : percent>=75 ? 'Cerca del límite' : 'Dentro del límite'}
-                          </div>
-                        </div>
-                        <div className="budget-amounts" style={{ fontSize:'0.75rem', color:'var(--text-secondary)', marginBottom:'0.4rem' }}>
-                          <strong style={{ fontSize:'0.8rem' }}>{formatCurrency(p.gastado)}</strong> / {formatCurrency(p.limite)} • {percent}%
-                        </div>
-                        <div className="progress-bar" style={{ height:6, background:'var(--surface-2)', borderRadius:4, overflow:'hidden' }}>
-                          <div className={`progress-fill ${fillClass}`} style={{ height:'100%', width:`${Math.min(100,percent)}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {budgets.textoIA && (
-                  <div style={{ padding:'1rem', background:'var(--surface-2)', borderLeft:'3px solid var(--primary)', borderRadius:'var(--radius-md)' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.5rem' }}>
-                      <Icon name="brain" size={16} style={{ color:'var(--primary)' }} />
-                      <strong style={{ fontSize:'0.85rem' }}>Evaluación IA</strong>
-                    </div>
-                    <p style={{ margin:0, fontSize:'0.75rem', lineHeight:1.4, color:'var(--text-secondary)' }}>{budgets.textoIA}</p>
+            </div>
+          )}
+          {budgetsData.recomendaciones && budgetsData.recomendaciones.length > 0 && (
+            <div style={{ marginBottom:'1rem' }}>
+              <h4 style={{ margin:'0 0 0.75rem 0', fontSize:'0.85rem' }}>Recomendaciones Presupuestos</h4>
+              <ol style={{ margin:0, paddingLeft:'1rem', display:'flex', flexDirection:'column', gap:'0.55rem', fontSize:'0.7rem' }}>
+                {budgetsData.recomendaciones.map((r,i)=>(
+                  <li key={i} style={{ lineHeight:1.35, display:'flex', gap:'0.45rem' }}>
+                    <Icon name="check" size={12} style={{ color:'var(--secondary)', marginTop:2 }} />
+                    <span style={{ flex:1 }} dangerouslySetInnerHTML={{ __html: r.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>') }} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {showBudgetsRaw && budgetsData && (
+            <div style={{ marginTop:'1rem' }}>
+              <h4 style={{ margin:'0 0 0.75rem 0', fontSize:'0.85rem' }}>Raw JSON Presupuestos</h4>
+              <pre style={{ maxHeight:400, overflow:'auto', fontSize:'0.65rem', background:'var(--surface-2)', padding:'0.75rem', borderRadius:'6px' }}>{JSON.stringify(budgetsData.raw, null, 2)}</pre>
+            </div>
+          )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Modal Proceso Completo */}
+      {showProcessModal && (
+        <div
+          style={{
+            position:'fixed',
+            top:0,
+            left:0,
+            right:0,
+            bottom:0,
+            background:'rgba(0,0,0,0.75)',
+            backdropFilter:'blur(4px)',
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            zIndex:9999,
+            padding:'1.5rem'
+          }}
+          onClick={() => setShowProcessModal(false)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth:1000,
+              maxHeight:'90vh',
+              overflow:'auto',
+              padding:'2rem',
+              background:'#ffffff',
+              borderRadius:'16px',
+              boxShadow:'0 25px 80px rgba(0,0,0,0.5)',
+              border:'1px solid #e5e7eb'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem', paddingBottom:'1rem', borderBottom:'2px solid var(--border)' }}>
+              <h3 style={{ margin:0, display:'flex', alignItems:'center', gap:'0.75rem', fontSize:'1.5rem', fontWeight:700 }}>
+                <Icon name="layers" size={28} style={{ color:'var(--primary)' }} />
+                Proceso Completo
+              </h3>
+              <button
+                onClick={() => setShowProcessModal(false)}
+                style={{
+                  background:'var(--surface)',
+                  border:'2px solid var(--border)',
+                  borderRadius:'8px',
+                  cursor:'pointer',
+                  padding:'0.5rem',
+                  color:'var(--text-secondary)',
+                  display:'flex',
+                  alignItems:'center',
+                  transition:'all 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--danger)'; e.currentTarget.style.color = 'var(--danger)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              >
+                <Icon name="x" size={24} />
+              </button>
+            </div>
+            {processLoading && <p style={{ fontSize:'0.85rem', textAlign:'center', padding:'2rem' }}>Cargando proceso...</p>}
+            {processError && <p className="error">{processError}</p>}
+            {processData && (
+              <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+                <div style={{ fontSize:'0.65rem', color:'var(--text-tertiary)' }}>status: <strong>{processData.status || '—'}</strong> • protocol: <strong>{processData.protocol || '—'}</strong></div>
+                {processData.estrategia && (
+                  <div style={{ fontSize:'0.7rem', lineHeight:1.4, background:'var(--surface-2)', padding:'0.75rem', borderRadius:'8px', border:'1px solid var(--border)' }}>
+                    <strong style={{ display:'block', marginBottom:'0.4rem', fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px', color:'var(--primary)' }}>Estrategia</strong>
+                    {processData.estrategia}
                   </div>
                 )}
-              </div>
-            )}
-            {/* Presupuestos AGUI (desde ui_data si no hay lista ACP) */}
-            {b && b.origen === 'agui' && b.presupuestosAGUI && b.presupuestosAGUI.length > 0 && (
-              <div className="card">
-                <h3 style={{ margin:'0 0 1rem 0' }}>Presupuestos Definidos</h3>
-                <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-                  {b.presupuestosAGUI.map((p,i)=>{
-                    if(typeof p==='string') return <div key={i} style={{ padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem', color:'var(--text-secondary)' }}>{p}</div>;
-                    return (
-                      <div key={i} style={{ padding:'0.75rem', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem' }}>
-                          <span style={{ fontWeight:600, textTransform:'capitalize', fontSize:'0.85rem' }}>{p.categoria || 'Categoría'}</span>
-                          <span style={{ fontSize:'0.7rem', color:'var(--text-tertiary)' }}>{p.periodo || ''}</span>
-                        </div>
-                        {p.limite && <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>Límite: {formatCurrency(p.limite)}</div>}
-                        {p.gastado !== undefined && <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>Gastado: {formatCurrency(p.gastado)}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {/* Estado de Presupuestos (dashboard.estado_presupuestos) */}
-            {b && b.origen === 'agui' && b.estadoPresupuestos && (() => {
-              const estado = b.estadoPresupuestos;
-              const titulo = estado.titulo || 'Estado de Presupuestos';
-              // Intentar obtener presupuestos de diferentes campos posibles
-              const presups = Array.isArray(estado.detalles) ? estado.detalles : 
-                             Array.isArray(estado.presupuestos) ? estado.presupuestos : [];
-              const mensaje = estado.mensaje_general || estado.mensaje || '';
-              const numActivos = estado.presupuestos_activos || presups.length || 0;
-              
-              if (presups.length === 0) return null;
-              
-              return (
-                <div className="card">
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
-                    <h3 style={{ margin:0 }}>{titulo}</h3>
-                    <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>
-                      {numActivos} presupuesto{numActivos !== 1 ? 's' : ''} activo{numActivos !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  {mensaje && <p style={{ fontSize:'0.8rem', color:'var(--text-secondary)', marginBottom:'1rem', lineHeight:1.4 }}>{mensaje}</p>}
-                  <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-                    {presups.map((pr,i)=>{
-                      const gastado = parseNumeric(pr.gastado || pr.monto_gastado || 0);
-                      const limite = parseNumeric(pr.limite || pr.monto_limite || pr.monto || 1);
-                      const pct = pr.porcentaje_uso || pr.porcentaje_gastado || pr.porcentaje || ((gastado / limite) * 100);
-                      const estado = (pr.estado || '').toLowerCase();
-                      let colorClass = pct >= 100 || estado.includes('sobrepasado') || estado.includes('excedido') ? 'danger' : pct >= 80 ? 'warning' : 'ok';
-                      return (
-                        <div key={i} style={{ padding:'0.75rem', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem' }}>
-                            <span style={{ fontWeight:600, textTransform:'capitalize', fontSize:'0.85rem' }}>{pr.categoria || pr.nombre || 'Presupuesto'}</span>
-                            <span className={`budget-status ${colorClass}`} style={{ fontSize:'0.7rem' }}>
-                              {pr.estado || (pct>=100?'Excedido':pct>=80?'Advertencia':'Normal')}
-                            </span>
-                          </div>
-                          <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)', marginBottom:'0.5rem' }}>
-                            <strong>{formatCurrency(gastado)}</strong> / {formatCurrency(limite)} • {Math.round(pct)}%
-                          </div>
-                          <div className="progress-bar" style={{ height:6, background:'var(--surface-2)', borderRadius:4, overflow:'hidden', border:'1px solid var(--border)' }}>
-                            <div className={`progress-fill ${colorClass}`} style={{ height:'100%', width:`${Math.min(100,pct)}%` }} />
-                          </div>
-                          {(pr.descripcion || pr.variacion_descripcion) && (
-                            <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginTop:'0.5rem' }}>
-                              {pr.descripcion || pr.variacion_descripcion}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Recomendaciones AGUI */}
-            {b && b.origen === 'agui' && b.recomendacionesAGUI && b.recomendacionesAGUI.length > 0 && (
-              <div className="card">
-                <h3 style={{ margin:'0 0 1rem 0' }}>Recomendaciones Financieras</h3>
-                <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-                  {b.recomendacionesAGUI.map((r,i)=>{
-                    if(typeof r==='string') return (
-                      <div key={i} style={{ display:'flex', gap:'0.5rem', padding:'0.75rem', background:'var(--surface-2)', borderLeft:'3px solid var(--secondary)', borderRadius:'var(--radius-sm)' }}>
-                        <Icon name="lightbulb" size={16} style={{ color:'var(--secondary)', marginTop:'0.1rem', flexShrink:0 }} />
-                        <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)', lineHeight:1.4 }}>{r}</span>
-                      </div>
-                    );
-                    return (
-                      <div key={i} style={{ padding:'0.75rem', background:'var(--surface-2)', borderLeft:'3px solid var(--secondary)', borderRadius:'var(--radius-sm)' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
-                          <Icon name="lightbulb" size={14} style={{ color:'var(--secondary)' }} />
-                          {r.categoria && <span style={{ fontWeight:600, fontSize:'0.8rem', textTransform:'capitalize' }}>{r.categoria}</span>}
-                          {r.prioridad && <span style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginLeft:'auto' }}>{r.prioridad}</span>}
-                        </div>
-                        <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)', lineHeight:1.4 }}>{r.texto || r.descripcion || r.recomendacion || ''}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {/* Recomendaciones Principales (dashboard.recomendaciones_principales) */}
-            {b && b.origen === 'agui' && b.recomendacionesPrincipales && (() => {
-              const rp = b.recomendacionesPrincipales;
-              
-              // Puede ser un array directo o un objeto con arrays dentro
-              let recomendaciones = [];
-              if (Array.isArray(rp)) {
-                recomendaciones = rp;
-              } else if (typeof rp === 'object') {
-                recomendaciones = rp.recomendaciones || rp.categorias || rp.items || [];
-              }
-              
-              if (!Array.isArray(recomendaciones) || recomendaciones.length === 0) return null;
-              
-              const titulo = typeof rp === 'object' && rp.titulo ? rp.titulo : 'Recomendaciones Principales';
-              const mensaje = typeof rp === 'object' && rp.mensaje ? rp.mensaje : '';
-              
-              return (
-                <div className="card">
-                  <h3 style={{ margin:'0 0 1rem 0' }}>{titulo}</h3>
-                  {mensaje && <p style={{ fontSize:'0.8rem', color:'var(--text-secondary)', marginBottom:'1rem', lineHeight:1.4 }}>{mensaje}</p>}
-                  <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-                    {recomendaciones.map((item,i)=>{
-                      // Si es string directo
-                      if (typeof item === 'string') {
-                        return (
-                          <div key={i} style={{ display:'flex', gap:'0.75rem', padding:'0.75rem', background:'var(--surface-2)', borderRadius:'var(--radius-md)', borderLeft:'3px solid var(--secondary)' }}>
-                            <Icon name="lightbulb" size={16} style={{ color:'var(--secondary)', flexShrink:0, marginTop:'0.15rem' }} />
-                            <span style={{ fontSize:'0.8rem', lineHeight:1.4 }}>{item}</span>
-                          </div>
-                        );
-                      }
-                      
-                      // Si es objeto con recomendacion/texto/descripcion
-                      const txt = item.recomendacion || item.texto || item.descripcion || item.mensaje || '';
-                      const prioridad = item.prioridad || '';
-                      const categoria = item.categoria || item.tipo || '';
-                      
-                      let bgColor = 'var(--surface-2)';
-                      let borderColor = 'var(--secondary)';
-                      if (prioridad.toLowerCase() === 'alta') {
-                        borderColor = 'var(--danger)';
-                      } else if (prioridad.toLowerCase() === 'media') {
-                        borderColor = 'var(--warning)';
-                      }
-                      
-                      return (
-                        <div key={i} style={{ display:'flex', gap:'0.75rem', padding:'0.75rem', background:bgColor, borderRadius:'var(--radius-md)', borderLeft:`3px solid ${borderColor}` }}>
-                          <Icon name="lightbulb" size={16} style={{ color:borderColor, flexShrink:0, marginTop:'0.15rem' }} />
-                          <div style={{ flex:1 }}>
-                            {categoria && <div style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginBottom:'0.25rem', textTransform:'uppercase', fontWeight:600 }}>{categoria}</div>}
-                            <div style={{ fontSize:'0.8rem', lineHeight:1.4, marginBottom: prioridad ? '0.35rem' : 0 }}>{txt}</div>
-                            {prioridad && (
-                              <span style={{ fontSize:'0.7rem', padding:'0.2rem 0.5rem', background: prioridad.toLowerCase()==='alta' ? 'rgba(225,29,72,0.15)' : prioridad.toLowerCase()==='media' ? 'rgba(251,146,60,0.15)' : 'rgba(107,114,128,0.15)', color: prioridad.toLowerCase()==='alta' ? 'var(--danger)' : prioridad.toLowerCase()==='media' ? 'var(--warning)' : 'var(--text-secondary)', borderRadius:'var(--radius-sm)', fontWeight:600 }}>
-                                Prioridad: {prioridad}
-                              </span>
+                {processData.subtareas && processData.subtareas.length > 0 && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                    <strong style={{ fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px', color:'var(--primary)' }}>Subtareas Planificadas</strong>
+                    <ul style={{ margin:0, paddingLeft:'1rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                      {processData.subtareas.map(st => (
+                        <li key={st.id} style={{ fontSize:'0.7rem', display:'flex', flexDirection:'column', gap:'0.3rem' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
+                            <span style={{ fontWeight:600, color:'var(--primary)' }}>#{st.id}</span>
+                            <span style={{ flex:1, minWidth:120 }}>{st.tipo}</span>
+                            {st.prioridad && (
+                              <span style={{ fontSize:'0.55rem', padding:'0.2rem 0.5rem', borderRadius:'999px', background: st.prioridad==='alta' ? 'rgba(225,29,72,0.15)' : st.prioridad==='media' ? 'rgba(251,146,60,0.15)' : 'rgba(107,114,128,0.15)', color: st.prioridad==='alta' ? 'var(--danger)' : st.prioridad==='media' ? 'var(--warning)' : 'var(--text-secondary)', fontWeight:600 }}>{st.prioridad}</span>
+                            )}
+                            {st.agente && (
+                              <span style={{ fontSize:'0.55rem', padding:'0.2rem 0.5rem', borderRadius:'999px', background:'var(--surface-2)', border:'1px solid var(--border)', color:'var(--text-secondary)' }}>{st.agente}</span>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-            {/* Tendencias Recientes (dashboard.tendencias_recientes) */}
-            {b && b.origen === 'agui' && b.tendenciasRecientes && (() => {
-              const tr = b.tendenciasRecientes;
-              const titulo = tr.titulo || 'Tendencias Recientes';
-              const tendencias = tr.tendencias || tr.items || [];
-              
-              // Campos individuales que pueden existir
-              const transaccionesRecientes = tr.transacciones_recientes;
-              const graficoGastos = tr.grafico_gastos_por_categoria;
-              const tendenciaIngresos = tr.tendencia_ingresos_vs_gastos;
-              const categoriasGasto = tr.categorias_gasto_principales;
-              
-              // Si no hay tendencias ni campos individuales, no mostrar
-              if (tendencias.length === 0 && !transaccionesRecientes && !graficoGastos && !tendenciaIngresos && !categoriasGasto) {
-                return null;
-              }
-              
-              return (
-                <div className="card">
-                  <h3 style={{ margin:'0 0 1rem 0' }}>{titulo}</h3>
-                  
-                  {/* Si hay array de tendencias */}
-                  {Array.isArray(tendencias) && tendencias.length > 0 && (
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'0.75rem', marginBottom: (transaccionesRecientes !== undefined) ? '1rem' : 0 }}>
-                      {tendencias.map((t,i)=>{
-                        const tipo = (t.tipo || t.categoria || '').toLowerCase();
-                        const impacto = (t.impacto || '').toLowerCase();
-                        const valor = t.valor || t.cambio || '';
-                        const desc = t.mensaje || t.descripcion || t.texto || '';
-                        const direccion = (t.direccion || '').toLowerCase();
-                        let iconName = 'trendingUp';
-                        let iconColor = 'var(--secondary)';
-                        
-                        if (tipo.includes('creciente') || tipo.includes('aumento')) {
-                          iconName = 'trendingUp';
-                          iconColor = impacto === 'negativo' ? 'var(--danger)' : 'var(--secondary)';
-                        } else if (tipo.includes('decreciente') || tipo.includes('reducción')) {
-                          iconName = 'trendingDown';
-                          iconColor = impacto === 'positivo' ? 'var(--secondary)' : 'var(--danger)';
-                        } else if (direccion.includes('estable')) {
-                          iconName = 'minus';
-                          iconColor = 'var(--text-tertiary)';
-                        }
-                        
-                        return (
-                          <div key={i} className="card stat-card" style={{ padding:'0.75rem', background:'var(--surface-2)', border:'1px solid var(--border)', borderLeft:`3px solid ${iconColor}` }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                              <Icon name={iconName} size={16} style={{ color:iconColor }} />
-                              <span style={{ fontWeight:600, fontSize:'0.8rem', textTransform:'capitalize' }}>{t.categoria || tipo || 'Tendencia'}</span>
-                            </div>
-                            {t.tipo && <div style={{ fontSize:'0.7rem', marginBottom:'0.3rem', color:'var(--text-tertiary)' }}>{t.tipo}</div>}
-                            {valor && <div style={{ fontSize:'1rem', fontWeight:700, color:iconColor, marginBottom:4 }}>{valor}</div>}
-                            {desc && <div style={{ fontSize:'0.7rem', color:'var(--text-secondary)', lineHeight:1.3 }}>{desc}</div>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  
-                  {/* Mostrar campos individuales si existen */}
-                  {(transaccionesRecientes !== undefined || graficoGastos || tendenciaIngresos || categoriasGasto) && (
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-                      {transaccionesRecientes !== undefined && (
-                        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem' }}>
-                          <Icon name="activity" size={14} style={{ color:'var(--primary)' }} />
-                          <div><strong>Transacciones recientes:</strong> {transaccionesRecientes}</div>
-                        </div>
-                      )}
-                      {graficoGastos && !graficoGastos.includes('Pendiente') && (
-                        <div style={{ padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem' }}>
-                          <strong>Gastos por categoría:</strong> {graficoGastos}
-                        </div>
-                      )}
-                      {tendenciaIngresos && !tendenciaIngresos.includes('Pendiente') && (
-                        <div style={{ padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem' }}>
-                          <strong>Ingresos vs Gastos:</strong> {tendenciaIngresos}
-                        </div>
-                      )}
-                      {categoriasGasto && !categoriasGasto.includes('Pendiente') && (
-                        <div style={{ padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem' }}>
-                          <strong>Categorías principales:</strong> {categoriasGasto}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            {/* Plan de análisis (task_results) */}
-            {planData && planData.subtareas.length > 0 && (
-              <div className="card">
-                <h3 style={{ margin:'0 0 1rem 0' }}>Plan de Análisis Ejecutado</h3>
-                {planData.estrategia && (
-                  <div style={{ padding:'0.75rem', background:'linear-gradient(135deg, rgba(99,102,241,0.08) 0%, transparent 100%)', border:'1px solid var(--primary)', borderRadius:'var(--radius-md)', marginBottom:'1rem' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                      <Icon name="target" size={14} style={{ color:'var(--primary)' }} />
-                      <strong style={{ fontSize:'0.85rem', color:'var(--primary)' }}>Estrategia</strong>
-                    </div>
-                    <p style={{ margin:0, fontSize:'0.75rem', color:'var(--text-secondary)', lineHeight:1.4 }}>{planData.estrategia}</p>
+                          {st.descripcion && <div style={{ fontSize:'0.6rem', color:'var(--text-tertiary)', paddingLeft:'1.5rem' }}>{st.descripcion}</div>}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
-                <div>
-                  <h4 style={{ margin:'0 0 0.75rem 0', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:6 }}>
-                    <Icon name="list" size={16} />
-                    Subtareas Ejecutadas ({planData.subtareas.length})
-                  </h4>
-                  <div style={{ position:'relative', paddingLeft:'1.5rem' }}>
-                    {/* Timeline line */}
-                    <div style={{ position:'absolute', left:'0.5rem', top:'0.5rem', bottom:'0.5rem', width:'2px', background:'var(--border)' }} />
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-                      {planData.subtareas.map((t,i)=>{
-                        const prioridad = (t.prioridad||'').toLowerCase();
-                        let prioColor = 'var(--text-tertiary)';
-                        if(prioridad==='alta') prioColor='var(--danger)';
-                        else if(prioridad==='media') prioColor='var(--warning)';
+                {processData.tareas_ejecutadas && processData.tareas_ejecutadas.length > 0 && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem', marginTop:'0.5rem' }}>
+                    <strong style={{ fontSize:'0.65rem', textTransform:'uppercase', letterSpacing:'0.5px', color:'var(--primary)' }}>Resultados de Ejecución</strong>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'0.7rem' }}>
+                      {processData.tareas_ejecutadas.map(t => {
+                        const status = (t.status || '').toLowerCase();
+                        let badgeColor = 'var(--text-secondary)';
+                        if (status.includes('completed') || status.includes('calculated') || status.includes('verified')) badgeColor = 'var(--secondary)';
+                        if (status.includes('alert')) badgeColor = 'var(--warning)';
                         return (
-                          <div key={i} style={{ position:'relative', padding:'0.75rem', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', fontSize:'0.75rem' }}>
-                            {/* Timeline dot */}
-                            <div style={{ position:'absolute', left:'-1.6rem', top:'1rem', width:'10px', height:'10px', borderRadius:'50%', background:'var(--primary)', border:'2px solid var(--background)' }} />
-                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                              <span style={{ fontWeight:700, color:'var(--primary)', fontSize:'0.85rem' }}>#{t.id}</span>
-                              <span style={{ flex:1, textTransform:'capitalize', color:'var(--text-primary)', fontWeight:600 }}>{t.tipo?.replace(/_/g,' ')}</span>
-                              <span style={{ fontSize:'0.7rem', color:prioColor, textTransform:'uppercase', fontWeight:600 }}>{t.prioridad}</span>
+                          <div key={t.id} className="card" style={{ padding:'0.7rem', display:'flex', flexDirection:'column', gap:'0.45rem', border:'1px solid var(--border)', borderRadius:'8px' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.5rem' }}>
+                              <span style={{ fontSize:'0.65rem', fontWeight:600 }}>#{t.id} {t.tipo}</span>
+                              <span style={{ fontSize:'0.55rem', padding:'0.2rem 0.5rem', borderRadius:'999px', background:'var(--surface-2)', color: badgeColor, fontWeight:600 }}>{t.status || '—'}</span>
                             </div>
-                            <div style={{ color:'var(--text-secondary)', lineHeight:1.4 }}>{t.descripcion}</div>
-                            {t.agente && <div style={{ marginTop:6, fontSize:'0.7rem', color:'var(--text-tertiary)' }}>Agente: {t.agente}</div>}
+                            {t.agente && <div style={{ fontSize:'0.55rem', color:'var(--text-tertiary)' }}>Agente: {t.agente}</div>}
+                            {t.protocol_used && <div style={{ fontSize:'0.55rem', color:'var(--text-tertiary)' }}>Protocol: {t.protocol_used}</div>}
+                            {t.mensaje_alerta && <div style={{ fontSize:'0.55rem', color:'var(--warning)' }}>{t.mensaje_alerta}</div>}
+                            {t.resumen_ui && <div style={{ fontSize:'0.55rem', color:'var(--text-secondary)' }}>Balance: {t.resumen_ui.balance} • Ingresos: {t.resumen_ui.ingresos} • Gastos: {t.resumen_ui.gastos}</div>}
+                            {t.health && <div style={{ fontSize:'0.55rem', color:'var(--secondary)' }}>Health: {t.health.system_health}</div>}
                           </div>
                         );
                       })}
                     </div>
                   </div>
+                )}
+                <div style={{ display:'flex', gap:'0.5rem', marginTop:'0.5rem' }}>
+                  <button className="btn-secondary" onClick={()=>setShowProcessRaw(s=>!s)} style={{ fontSize:'0.7rem', padding:'0.5rem 0.75rem' }}>
+                    {showProcessRaw ? 'Ocultar JSON' : 'Ver JSON Raw'}
+                  </button>
                 </div>
-              </div>
-            )}
-            {/* Recomendaciones e Insights */}
-            {rec && (rec.insights.length || rec.sugerencias.length || rec.alertas.length || rec.predicciones.length) > 0 && (
-              <div className="card">
-                <h3 style={{ margin:'0 0 1rem 0' }}>Recomendaciones e Insights</h3>
-                {rec.comparaciones && (rec.comparaciones.gastos_vs_ingresos || rec.comparaciones.categoria_mayor_gasto) && (
-                  <div style={{ marginBottom:'1.25rem' }}>
-                    <h4 style={{ margin:'0 0 0.6rem 0', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                      <Icon name="fileText" size={16} style={{ color:'var(--primary)' }} />Comparaciones
-                    </h4>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'0.75rem' }}>
-                      {rec.comparaciones.gastos_vs_ingresos && (
-                        <div className="card stat-card" style={{ padding:'0.75rem' }}>
-                          <div className="stat-label" style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginBottom:4 }}>Gastos vs Ingresos</div>
-                          <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>{rec.comparaciones.gastos_vs_ingresos}</div>
-                        </div>
-                      )}
-                      {rec.comparaciones.categoria_mayor_gasto && (
-                        <div className="card stat-card" style={{ padding:'0.75rem' }}>
-                          <div className="stat-label" style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginBottom:4 }}>Categoría mayor gasto</div>
-                          <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)', textTransform:'capitalize' }}>{rec.comparaciones.categoria_mayor_gasto}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {rec.insights.length > 0 && (
-                  <div style={{ marginBottom:'1.25rem' }}>
-                    <h4 style={{ margin:'0 0 0.6rem 0', display:'flex', alignItems:'center', gap:'0.5rem' }}><Icon name="lightbulb" size={16} style={{ color:'var(--primary)' }} />Insights</h4>
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                      {rec.insights.map((x,i)=>(
-                        <div key={i} style={{ padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem', color:'var(--text-secondary)' }}>{x}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {rec.sugerencias.length > 0 && (
-                  <div style={{ marginBottom:'1.25rem' }}>
-                    <h4 style={{ margin:'0 0 0.6rem 0', display:'flex', alignItems:'center', gap:'0.5rem' }}><Icon name="check" size={16} style={{ color:'var(--secondary)' }} />Sugerencias</h4>
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.45rem' }}>
-                      {rec.sugerencias.map((s,i)=>(
-                        <div key={i} style={{ display:'flex', gap:'0.5rem', fontSize:'0.75rem' }}>
-                          <span style={{ color:'var(--secondary)', marginTop:'0.2rem' }}>✓</span>
-                          <span style={{ color:'var(--text-secondary)', lineHeight:1.4 }}>{s}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {rec.alertas.length > 0 && (
-                  <div style={{ marginBottom:'1.25rem' }}>
-                    <h4 style={{ margin:'0 0 0.6rem 0', display:'flex', alignItems:'center', gap:'0.5rem' }}><Icon name="alertTriangle" size={16} style={{ color:'var(--warning)' }} />Alertas</h4>
-                    <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                      {rec.alertas.map((al,i)=>(
-                        <div key={i} style={{ padding:'0.6rem', background:'rgba(251,146,60,0.1)', borderLeft:'3px solid var(--warning)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem', color:'var(--text-secondary)' }}>{al}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {rec.predicciones.length > 0 && (
-                  <div>
-                    <h4 style={{ margin:'0 0 0.6rem 0', display:'flex', alignItems:'center', gap:'0.5rem' }}><Icon name="trendingUp" size={16} style={{ color:'var(--primary)' }} />Predicciones Futuras</h4>
-                    {rec.tendencia && (
-                      <p style={{ margin:'0 0 0.9rem 0', padding:'0.6rem', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', fontSize:'0.75rem', color:'var(--text-secondary)' }}>{rec.tendencia}</p>
-                    )}
-                    {Array.isArray(rec.factores) && rec.factores.length > 0 && (
-                      <div style={{ margin:'0 0 0.9rem 0', display:'flex', flexWrap:'wrap', gap:'0.4rem' }}>
-                        {rec.factores.map((f,i)=>(
-                          <span key={i} style={{ fontSize:'0.7rem', background:'var(--surface-2)', border:'1px solid var(--border)', borderRadius:'999px', padding:'0.2rem 0.5rem', color:'var(--text-secondary)' }}>{f}</span>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'0.75rem' }}>
-                      {rec.predicciones.map((p,i)=>(
-                        <div key={i} className="card stat-card" style={{ padding:'0.75rem' }}>
-                          <div className="stat-label" style={{ fontSize:'0.7rem', color:'var(--text-tertiary)', marginBottom:'0.25rem' }}>Mes {p.mes}</div>
-                          <div className="stat-value" style={{ fontSize:'1.1rem' }}>{formatCurrency(p.gasto_estimado)}</div>
-                          <div style={{ fontSize:'0.6rem', color:'var(--text-tertiary)', marginTop:'0.25rem' }}>Confianza: {p.confianza}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                {showProcessRaw && (
+                  <pre style={{ maxHeight:300, overflow:'auto', fontSize:'0.6rem', background:'var(--surface-2)', padding:'0.75rem', borderRadius:'8px', marginTop:'0.5rem' }}>{JSON.stringify(processData.raw, null, 2)}</pre>
                 )}
               </div>
             )}
-
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }

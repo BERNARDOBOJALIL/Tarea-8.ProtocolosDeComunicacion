@@ -1,0 +1,325 @@
+{
+    "status": "success",
+    "plan": {
+        "status": "plan_created",
+        "plan": {
+            "subtareas": [
+                {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones financieras del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance financiero actual del usuario 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 3,
+                    "tipo": "analizar_gastos",
+                    "descripcion": "Analizar los gastos del usuario 6 para identificar patrones y tendencias.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 4,
+                    "tipo": "analizar_patrones",
+                    "descripcion": "Analizar patrones de gasto del usuario 6 para identificar áreas de mejora.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 5,
+                    "tipo": "verificar_presupuestos",
+                    "descripcion": "Verificar si el usuario 6 se adhiere a su presupuesto actual.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 6,
+                    "tipo": "consultar_historico",
+                    "descripcion": "Consultar datos históricos del usuario 6 para comparaciones y análisis de tendencias a largo plazo.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "baja"
+                },
+                {
+                    "id": 7,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas para el usuario 6 si se detectan gastos inusuales o desviaciones del presupuesto.",
+                    "agente": "Notificador",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 8,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear un reporte financiero completo para el usuario 6 con los resultados del análisis.",
+                    "agente": "Interfaz",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 9,
+                    "tipo": "crear_dashboard",
+                    "descripcion": "Crear un dashboard visual para el usuario 6 que muestre los indicadores clave del análisis financiero.",
+                    "agente": "Interfaz",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 10,
+                    "tipo": "registrar_actividad",
+                    "descripcion": "Registrar todas las actividades realizadas durante el análisis financiero del usuario 6.",
+                    "agente": "Monitor",
+                    "prioridad": "baja"
+                }
+            ],
+            "estrategia": "La estrategia general es recopilar y analizar los datos financieros del usuario, identificar patrones y anomalías, generar alertas si es necesario y presentar los resultados de manera clara y concisa a través de un reporte y un dashboard."
+        },
+        "task_results": [
+            {
+                "tarea": {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones financieras del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "query_completed",
+                    "result": {
+                        "message_id": "KB_1763840097.730548",
+                        "protocol": "MCP",
+                        "content_type": "transaction_query_result",
+                        "data": {
+                            "usuario_id": null,
+                            "periodo": {
+                                "inicio": "2025-10-23T19:34:57.730562",
+                                "fin": "2025-11-22T19:34:57.730576"
+                            },
+                            "transacciones": [],
+                            "total_count": 0,
+                            "filters_applied": {
+                                "categoria": null,
+                                "tipo": null
+                            }
+                        },
+                        "timestamp": "2025-11-22T19:34:57.730582"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance financiero actual del usuario 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "balance_calculated",
+                    "resultado": {
+                        "ingresos_totales": 0.0,
+                        "gastos_totales": 0.0,
+                        "balance": 0.0,
+                        "total_transacciones": 0,
+                        "analisis": "No hay transacciones registradas en los últimos 30 días. Comienza a registrar tus ingresos y gastos para obtener análisis personalizados."
+                    },
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 3,
+                    "tipo": "analizar_gastos",
+                    "descripcion": "Analizar los gastos del usuario 6 para identificar patrones y tendencias.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "expenses_analyzed",
+                    "analisis": "Dado que el \"usuario\" es \"None\", no se ha proporcionado ningún dato de gasto. Por lo tanto, no es posible realizar un análisis real de patrones de gasto.\n\nSin embargo, puedo generar una estructura JSON que explique por qué no se puede realizar el análisis y qué tipo de información sería necesaria para llevarlo a cabo.\n\n```json\n{\n  \"analisis_usuario\": \"None\",\n  \"estado_analisis\": \"Datos_Insuficientes\",\n  \"mensaje_general\": \"No se puede realizar un análisis de patrones de gasto para el usuario 'None' porque no se ha proporcionado ningún dato de gasto. Para llevar a cabo este análisis, se requiere un historial detallado de transacciones.\",\n  \"detalle_requerimientos\": {\n    \"datos_necesarios\": [\n      \"Historial de transacciones (fecha, descripción, monto)\",\n      \"Categorización de gastos (alimentación, transporte, vivienda, ocio, etc.)\",\n      \"Período de tiempo a analizar (ej. últimos 3, 6 o 12 meses)\"\n    ],\n    \"formato_preferido\": \"Una lista de objetos JSON o un archivo CSV con cada transacción.\"\n  },\n  \"analisis_solicitado\": {\n    \"categorias_mayor_gasto\": {\n      \"estado\": \"No_Aplicable\",\n      \"razon\": \"No hay datos de transacciones para identificar categorías de gasto. Se necesita un historial de transacciones categorizadas para determinar cuáles tienen el mayor impacto.\"\n    },\n    \"tendencias_gasto\": {\n      \"estado\": \"No_Aplicable\",\n      \"razon\": \"Imposible determinar tendencias sin datos históricos a lo largo del tiempo. Se requiere un registro de gastos en diferentes períodos para observar patrones o cambios (ej. estacionalidad, aumento/disminución).\"\n    },\n    \"gastos_inusuales\": {\n      \"estado\": \"No_Aplicable\",\n      \"razon\": \"No se pueden identificar gastos atípicos o inusuales sin una base de datos de transacciones para establecer un patrón normal y detectar desviaciones significativas o transacciones fuera de lo común.\"\n    },\n    \"oportunidades_ahorro\": {\n      \"estado\": \"No_Aplicable\",\n      \"razon\": \"Sin conocer los patrones de gasto y las categorías principales, no es posible sugerir oportunidades de ahorro específicas. Se necesita un análisis de dónde se gasta el dinero para identificar áreas de posible reducción o optimización.\"\n    }\n  },\n  \"proximo_paso\": \"Por favor, proporcione los datos de gasto del usuario para poder realizar un análisis completo y detallado.\"\n}",
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 4,
+                    "tipo": "analizar_patrones",
+                    "descripcion": "Analizar patrones de gasto del usuario 6 para identificar áreas de mejora.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "historical_analysis_completed",
+                    "result": {
+                        "message_id": "KB_1763840112.344607",
+                        "protocol": "MCP",
+                        "content_type": "historical_analysis",
+                        "data": {
+                            "patrones_gasto": {},
+                            "tendencias_ingreso": {},
+                            "anomalias": [],
+                            "predicciones": {},
+                            "analisis_ia": "Dado que el usuario especificado es \"None\" y no se han proporcionado datos financieros históricos para analizar, no es posible identificar patrones de gasto, tendencias de ingreso, cambios significativos o realizar predicciones.\n\nAquí tienes el JSON con la información correspondiente a la ausencia de datos:\n\n```json\n{\n    \"patrones_gasto\": {\n        \"mensaje\": \"No se han proporcionado datos financieros para el usuario 'None'. No es posible identificar patrones de gasto recurrentes sin información histórica.\"\n    },\n    \"tendencias_ingreso\": {\n        \"mensaje\": \"No se han proporcionado datos financieros para el usuario 'None'. No es posible identificar tendencias de ingreso sin información histórica.\"\n    },\n    \"anomalias\": [\n        \"No se han proporcionado datos financieros para el usuario 'None'. No es posible identificar cambios significativos o anomalías sin información histórica.\"\n    ],\n    \"predicciones\": {\n        \"mensaje\": \"No se han proporcionado datos financieros para el usuario 'None'. No es posible realizar predicciones para el próximo período sin datos históricos.\"\n    }\n}"
+                        },
+                        "timestamp": "2025-11-22T19:35:12.344621"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 5,
+                    "tipo": "verificar_presupuestos",
+                    "descripcion": "Verificar si el usuario 6 se adhiere a su presupuesto actual.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "budgets_verified",
+                    "resultado": {
+                        "presupuestos": [],
+                        "recomendaciones": [
+                            "No hay presupuestos configurados para este mes.",
+                            "Crea presupuestos para empezar a controlar tus gastos."
+                        ],
+                        "mensaje": "Usuario sin presupuestos activos"
+                    },
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 6,
+                    "tipo": "consultar_historico",
+                    "descripcion": "Consultar datos históricos del usuario 6 para comparaciones y análisis de tendencias a largo plazo.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "baja"
+                },
+                "response": {
+                    "status": "historical_analysis_completed",
+                    "result": {
+                        "message_id": "KB_1763840116.765062",
+                        "protocol": "MCP",
+                        "content_type": "historical_analysis",
+                        "data": {
+                            "patrones_gasto": {
+                                "mensaje": "No se pueden analizar patrones de gasto. No hay datos financieros disponibles para el usuario 'None'."
+                            },
+                            "tendencias_ingreso": {
+                                "mensaje": "No se pueden analizar tendencias de ingreso. No hay datos financieros disponibles para el usuario 'None'."
+                            },
+                            "anomalias": [
+                                "No se pueden identificar cambios significativos o anomalías sin datos financieros históricos para el usuario 'None'."
+                            ],
+                            "predicciones": {
+                                "mensaje": "No se pueden realizar predicciones para el próximo período. No hay datos financieros históricos disponibles para el usuario 'None'."
+                            },
+                            "nota_general": "La solicitud no puede ser procesada debido a la ausencia de datos financieros para el usuario especificado ('None'). Por favor, proporciona un usuario válido con datos históricos para realizar el análisis."
+                        },
+                        "timestamp": "2025-11-22T19:35:16.765080"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 7,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas para el usuario 6 si se detectan gastos inusuales o desviaciones del presupuesto.",
+                    "agente": "Notificador",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "alert_created",
+                    "alerta": {
+                        "titulo": "Tarea 'Generar Alertas' Completada",
+                        "mensaje": "La tarea de generar alertas para gastos inusuales y desviaciones presupuestarias del usuario 6 ha sido completada por el Agente Notificador. Se ha configurado el sistema para monitorear y alertar sobre posibles anomalías.",
+                        "nivel": "info",
+                        "recomendacion": "Verificar la configuración de alertas del usuario 6 y monitorear su efectividad en los próximos días."
+                    },
+                    "protocol_used": "A2A"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 8,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear un reporte financiero completo para el usuario 6 con los resultados del análisis.",
+                    "agente": "Interfaz",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "dashboard_created",
+                    "ui_data": {
+                        "resumen": {
+                            "balance": 0,
+                            "ingresos": 0,
+                            "gastos": 0
+                        },
+                        "presupuestos": [],
+                        "alertas": [],
+                        "tendencias": "Sin datos suficientes",
+                        "recomendaciones": []
+                    },
+                    "protocol_used": "AGUI"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 9,
+                    "tipo": "crear_dashboard",
+                    "descripcion": "Crear un dashboard visual para el usuario 6 que muestre los indicadores clave del análisis financiero.",
+                    "agente": "Interfaz",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "dashboard_created",
+                    "ui_data": {
+                        "resumen": {
+                            "balance": 0,
+                            "ingresos": 0,
+                            "gastos": 0
+                        },
+                        "presupuestos": [],
+                        "alertas": [],
+                        "tendencias": "Sin datos suficientes",
+                        "recomendaciones": []
+                    },
+                    "protocol_used": "AGUI"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 10,
+                    "tipo": "registrar_actividad",
+                    "descripcion": "Registrar todas las actividades realizadas durante el análisis financiero del usuario 6.",
+                    "agente": "Monitor",
+                    "prioridad": "baja"
+                },
+                "response": {
+                    "status": "health_check_completed",
+                    "health": {
+                        "system_health": "healthy",
+                        "problematic_agents": [],
+                        "optimization_recommendations": [
+                            "Aunque el sistema está sano, monitorizar el rendimiento de los agentes a medida que se añaden más.  Implementar logging y métricas para detectar cuellos de botella futuros.",
+                            "Considerar la implementación de un sistema de monitorización centralizado para la salud de los agentes y la cola de mensajes a medida que el sistema crece.",
+                            "Establecer umbrales para la longitud de la cola de mensajes.  Si la cola crece demasiado, podría indicar un problema de rendimiento."
+                        ],
+                        "alerts": [],
+                        "justification": "El sistema se considera sano porque no hay agentes en un estado problemático y la cola de mensajes está vacía.  Esto indica que los agentes están funcionando según lo esperado y que los mensajes se están procesando de manera oportuna.  Sin embargo, se proporcionan recomendaciones de optimización para garantizar que el sistema siga siendo sano a medida que crece en complejidad."
+                    },
+                    "timestamp": "2025-11-22T19:35:39.973833"
+                }
+            }
+        ],
+        "protocol_used": "ANP"
+    },
+    "protocol_used": "ANP",
+    "agent": "Planificador",
+    "message": "Plan de análisis creado. Las subtareas serán ejecutadas por los agentes correspondientes."
+}

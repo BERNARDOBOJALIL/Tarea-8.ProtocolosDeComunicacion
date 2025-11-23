@@ -11,8 +11,15 @@ export default function AlertsView({ userId }) {
     if (!userId) return;
     setLoading(true); setError(null);
     try {
-      const data = await api.listAlerts({ usuario_id: userId });
-      setItems(data);
+      const res = await api.listAlerts({ usuario_id: userId });
+      let alerts = Array.isArray(res)
+        ? res
+        : (Array.isArray(res?.alertas) ? res.alertas
+          : Array.isArray(res?.items) ? res.items
+          : Array.isArray(res?.data?.alertas) ? res.data.alertas
+          : Array.isArray(res?.data) ? res.data
+          : []);
+      setItems(alerts);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -33,8 +40,14 @@ export default function AlertsView({ userId }) {
     });
   };
 
-  const pendingAlerts = items.filter(a => a.estado !== 'LEIDA');
-  const readAlerts = items.filter(a => a.estado === 'LEIDA');
+  const normEstado = (a) => ((a?.estado || a?.status || '') + '').toUpperCase();
+  const normNivel = (a) => ((a?.nivel || a?.level || 'INFO') + '').toUpperCase();
+  const titleOf = (a) => a?.titulo || a?.title || 'Alerta';
+  const messageOf = (a) => a?.mensaje || a?.message || '';
+  const dateOf = (a) => a?.creado_en || a?.created_at || a?.fecha || a?.timestamp || new Date().toISOString();
+
+  const pendingAlerts = items.filter(a => normEstado(a) !== 'LEIDA');
+  const readAlerts = items.filter(a => normEstado(a) === 'LEIDA');
 
   return (
     <div className="view">
@@ -51,14 +64,14 @@ export default function AlertsView({ userId }) {
             {pendingAlerts.map(a => (
               <li key={a.id}>
                 <div className="alert-item">
-                  <div className={`alert-icon ${a.nivel.toLowerCase()}`}>
-                    <Icon name={alertLevelIcons[a.nivel] || 'info'} size={20} />
+                  <div className={`alert-icon ${normNivel(a).toLowerCase()}`}>
+                    <Icon name={alertLevelIcons[normNivel(a)] || 'info'} size={20} />
                   </div>
                   <div className="alert-content">
-                    <strong>{a.titulo}</strong>
-                    <p>{a.mensaje}</p>
+                    <strong>{titleOf(a)}</strong>
+                    <p>{messageOf(a)}</p>
                     <small style={{ color: 'var(--text-secondary)' }}>
-                      {formatDate(a.creado_en)}
+                      {formatDate(dateOf(a))}
                     </small>
                   </div>
                   <button className="btn-secondary" onClick={() => markRead(a.id)}>
@@ -80,14 +93,14 @@ export default function AlertsView({ userId }) {
             {readAlerts.map(a => (
               <li key={a.id} style={{ opacity: 0.6 }}>
                 <div className="alert-item">
-                  <div className={`alert-icon ${a.nivel.toLowerCase()}`}>
-                    <Icon name={alertLevelIcons[a.nivel] || 'info'} size={20} />
+                  <div className={`alert-icon ${normNivel(a).toLowerCase()}`}>
+                    <Icon name={alertLevelIcons[normNivel(a)] || 'info'} size={20} />
                   </div>
                   <div className="alert-content">
-                    <strong>{a.titulo}</strong>
-                    <p>{a.mensaje}</p>
+                    <strong>{titleOf(a)}</strong>
+                    <p>{messageOf(a)}</p>
                     <small style={{ color: 'var(--text-secondary)' }}>
-                      {formatDate(a.creado_en)}
+                      {formatDate(dateOf(a))}
                     </small>
                   </div>
                 </div>

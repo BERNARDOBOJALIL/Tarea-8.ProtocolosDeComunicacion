@@ -1,0 +1,303 @@
+{
+    "status": "success",
+    "plan": {
+        "status": "plan_created",
+        "plan": {
+            "subtareas": [
+                {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance actual del usuario con ID 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "datos_reales": {
+                        "ingresos_totales": 566.0,
+                        "gastos_totales": 84915.0,
+                        "balance": -84349.0,
+                        "total_transacciones": 7,
+                        "gastos_por_categoria": {
+                            "alimentacion": 44915.0,
+                            "salud": 40000.0
+                        },
+                        "ingreso_mensual": 344.0
+                    },
+                    "tiene_datos": true
+                },
+                {
+                    "id": 3,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear el balance calculado para su presentación al usuario.",
+                    "agente": "Interfaz",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 4,
+                    "tipo": "analizar_patrones",
+                    "descripcion": "Analizar los patrones de gasto del usuario con ID 6 para identificar posibles anomalías.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 5,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas si se detectan anomalías significativas en los patrones de gasto del usuario con ID 6.",
+                    "agente": "Notificador",
+                    "prioridad": "baja"
+                }
+            ],
+            "estrategia": "La estrategia general es recopilar primero los datos de transacciones del usuario, luego calcular el balance actual, formatearlo para su presentación, analizar los patrones de gasto para detectar anomalías y, finalmente, generar alertas si es necesario."
+        },
+        "task_results": [
+            {
+                "tarea": {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "query_completed",
+                    "result": {
+                        "message_id": "KB_1763827525.462002",
+                        "protocol": "MCP",
+                        "content_type": "transaction_query_result",
+                        "data": {
+                            "ingresos_totales": 566.0,
+                            "gastos_totales": 84915.0,
+                            "balance": -84349.0,
+                            "total_transacciones": 7,
+                            "gastos_por_categoria": {
+                                "alimentacion": 44915.0,
+                                "salud": 40000.0
+                            },
+                            "ingreso_mensual": 344.0
+                        },
+                        "timestamp": "2025-11-22T16:05:25.462014"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance actual del usuario con ID 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "datos_reales": {
+                        "ingresos_totales": 566.0,
+                        "gastos_totales": 84915.0,
+                        "balance": -84349.0,
+                        "total_transacciones": 7,
+                        "gastos_por_categoria": {
+                            "alimentacion": 44915.0,
+                            "salud": 40000.0
+                        },
+                        "ingreso_mensual": 344.0
+                    },
+                    "tiene_datos": true
+                },
+                "response": {
+                    "status": "balance_calculated",
+                    "resultado": {
+                        "ingresos_totales": 566.0,
+                        "gastos_totales": 84915.0,
+                        "balance": -84349.0,
+                        "total_transacciones": 7,
+                        "gastos_por_categoria": {
+                            "alimentacion": 44915.0,
+                            "salud": 40000.0
+                        },
+                        "analisis_ia": {
+                            "evaluacion_general": "La situación financiera es extremadamente crítica y altamente insostenible. Se registra un déficit masivo de -84,349.0 en los últimos 30 días, con gastos totales que superan los ingresos en aproximadamente 150 veces. Esto indica una emergencia financiera severa.",
+                            "puntos_criticos": [
+                                "**Balance Negativo Extremo**: Un déficit de -84,349.0 es alarmante y completamente insostenible a corto y largo plazo.",
+                                "**Gastos Desproporcionados**: Los gastos totales (84,915.0) son extraordinariamente altos en comparación con los ingresos (566.0), lo que genera una brecha financiera abismal.",
+                                "**Categorías de Gasto Problemáticas**: Las categorías de 'alimentacion' (44,915.0) y 'salud' (40,000.0) son las únicas registradas y representan gastos exorbitantes que son la causa principal del déficit. Es crucial entender la naturaleza de estos gastos (¿son recurrentes, únicos, errores de registro?).",
+                                "**Ingresos Insuficientes**: Los ingresos actuales son totalmente inadecuados para cubrir las necesidades básicas, y mucho menos los gastos registrados."
+                            ],
+                            "recomendaciones": [
+                                "**Revisión Urgente y Detallada de Gastos Mayores**: Es imperativo analizar cada transacción en las categorías de 'alimentacion' y 'salud'. Determinar si estos son gastos únicos, errores de registro, o si hay alternativas más económicas o planes de pago disponibles para gastos de salud.",
+                                "**Creación y Adherencia a un Presupuesto Estricto**: Establecer límites de gasto realistas para todas las categorías, priorizando las necesidades básicas y eliminando cualquier gasto no esencial de inmediato.",
+                                "**Explorar Aumento de Ingresos**: Buscar activamente formas de incrementar los ingresos de manera significativa, ya sea a través de trabajo adicional, nuevas oportunidades laborales o monetización de habilidades, para poder cubrir al menos los gastos esenciales.",
+                                "**Asesoramiento Financiero Profesional**: Dada la magnitud del déficit, se recomienda encarecidamente buscar la ayuda de un asesor financiero para desarrollar un plan de recuperación y gestión de deudas.",
+                                "**Gestión de Deudas**: Si el balance negativo está generando deudas, desarrollar una estrategia clara para gestionarlas y reducirlas, priorizando las deudas con intereses más altos."
+                            ],
+                            "tendencia": "negativa"
+                        }
+                    },
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 3,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear el balance calculado para su presentación al usuario.",
+                    "agente": "Interfaz",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "dashboard_created",
+                    "ui_data": {
+                        "dashboard": {
+                            "resumen_financiero": {
+                                "titulo": "Resumen Financiero General",
+                                "ingresos_totales": {
+                                    "valor": 566.0,
+                                    "descripcion": "Ingresos Totales"
+                                },
+                                "gastos_totales": {
+                                    "valor": 84915.0,
+                                    "descripcion": "Gastos Totales"
+                                },
+                                "balance": {
+                                    "valor": -84349.0,
+                                    "descripcion": "Balance General",
+                                    "estado": "Negativo",
+                                    "nota": "El balance actual es negativo. Se recomienda revisar los gastos."
+                                },
+                                "total_transacciones": {
+                                    "valor": 7,
+                                    "descripcion": "Número Total de Transacciones"
+                                }
+                            },
+                            "estado_presupuestos": {
+                                "titulo": "Estado de Presupuestos",
+                                "descripcion": "Análisis del gasto por categoría.",
+                                "categorias": [
+                                    {
+                                        "nombre": "Alimentación",
+                                        "gasto": 44915.0,
+                                        "porcentaje_total": "52.89%",
+                                        "estado": "Sobrepasado",
+                                        "recomendacion": "Reducir el gasto en alimentación o ajustar el presupuesto."
+                                    },
+                                    {
+                                        "nombre": "Salud",
+                                        "gasto": 40000.0,
+                                        "porcentaje_total": "47.11%",
+                                        "estado": "Sobrepasado",
+                                        "recomendacion": "Evaluar opciones de seguros o programas de salud para reducir costos."
+                                    }
+                                ],
+                                "nota": "El gasto en ambas categorías supera significativamente los ingresos."
+                            },
+                            "alertas_activas": {
+                                "titulo": "Alertas Activas",
+                                "alertas": [
+                                    {
+                                        "tipo": "Balance Negativo",
+                                        "descripcion": "El balance es significativamente negativo (-$84349.0).",
+                                        "gravedad": "Crítica",
+                                        "accion_recomendada": "Reducir gastos urgentemente y buscar fuentes adicionales de ingresos."
+                                    },
+                                    {
+                                        "tipo": "Gasto Excesivo en Alimentación",
+                                        "descripcion": "El gasto en alimentación es muy alto ($44915.0).",
+                                        "gravedad": "Alta",
+                                        "accion_recomendada": "Revisar hábitos alimenticios y buscar alternativas más económicas."
+                                    },
+                                    {
+                                        "tipo": "Gasto Excesivo en Salud",
+                                        "descripcion": "El gasto en salud es muy alto ($40000.0).",
+                                        "gravedad": "Alta",
+                                        "accion_recomendada": "Investigar opciones de seguros de salud más asequibles o negociar precios con proveedores de servicios médicos."
+                                    }
+                                ]
+                            },
+                            "tendencias_recientes": {
+                                "titulo": "Tendencias Recientes",
+                                "descripcion": "Análisis de la evolución de ingresos y gastos.",
+                                "ingreso_mensual": {
+                                    "valor": 344.0,
+                                    "tendencia": "Estable",
+                                    "nota": "El ingreso mensual se mantiene relativamente estable."
+                                },
+                                "gasto_total": {
+                                    "valor": 84915.0,
+                                    "tendencia": "Alta",
+                                    "nota": "El gasto total es extremadamente alto y requiere atención inmediata."
+                                },
+                                "nota": "Se necesita un análisis más profundo de las transacciones para identificar patrones de gasto."
+                            },
+                            "recomendaciones_principales": {
+                                "titulo": "Recomendaciones Principales",
+                                "recomendaciones": [
+                                    "Reducir drásticamente los gastos, especialmente en alimentación y salud.",
+                                    "Crear un presupuesto detallado y adherirse a él.",
+                                    "Buscar fuentes adicionales de ingresos.",
+                                    "Considerar la posibilidad de obtener asesoramiento financiero profesional.",
+                                    "Analizar todas las transacciones recientes para identificar áreas de gasto innecesario.",
+                                    "Negociar con proveedores de servicios (salud, alimentación) para obtener mejores precios."
+                                ]
+                            }
+                        }
+                    },
+                    "protocol_used": "AGUI"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 4,
+                    "tipo": "analizar_patrones",
+                    "descripcion": "Analizar los patrones de gasto del usuario con ID 6 para identificar posibles anomalías.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "historical_analysis_completed",
+                    "result": {
+                        "message_id": "KB_1763827541.762633",
+                        "protocol": "MCP",
+                        "content_type": "historical_analysis",
+                        "data": {
+                            "ingresos_totales": 566.0,
+                            "gastos_totales": 84915.0,
+                            "balance": -84349.0,
+                            "total_transacciones": 7,
+                            "gastos_por_categoria": {
+                                "alimentacion": 44915.0,
+                                "salud": 40000.0
+                            },
+                            "ingreso_mensual": 344.0
+                        },
+                        "timestamp": "2025-11-22T16:05:41.762644"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 5,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas si se detectan anomalías significativas en los patrones de gasto del usuario con ID 6.",
+                    "agente": "Notificador",
+                    "prioridad": "baja"
+                },
+                "response": {
+                    "status": "alert_created",
+                    "alerta": {
+                        "titulo": "Tarea 'generar_alertas' completada (ID: 5)",
+                        "mensaje": "Se ha completado la tarea de generar alertas para detectar anomalías en los patrones de gasto del usuario con ID 6. Revise los logs del Notificador para verificar la ejecución y las alertas generadas. La tarea fue priorizada como baja.",
+                        "nivel": "info",
+                        "recomendacion": "Verificar los logs del Notificador y confirmar la correcta generación de alertas para el usuario ID 6."
+                    },
+                    "protocol_used": "A2A"
+                }
+            }
+        ],
+        "protocol_used": "ANP"
+    },
+    "protocol_used": "ANP",
+    "agent": "Planificador",
+    "message": "Plan de análisis creado y subtareas ejecutadas por los agentes. Revisa 'task_results' para resultados individuales."
+}

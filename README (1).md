@@ -23,8 +23,6 @@ Este sistema implementa un enfoque multiagente para la gestión de finanzas pers
 
 ## Capturas de Pantalla
 
-Coloca las imágenes en `public/screenshots/` con los siguientes nombres sugeridos. Se mostrarán automáticamente en esta sección.
-
 ### Login
 ![Login](public/screenshots/login.png)
 
@@ -37,11 +35,14 @@ Coloca las imágenes en `public/screenshots/` con los siguientes nombres sugerid
 ### Presupuestos
 ![Presupuestos](public/screenshots/presupuestos.png)
 
-### Alertas
-![Alertas](public/screenshots/alertas.png)
+### Análisis IA Balance
+![Análisis IA](public/screenshots/analisis-ia-balance.png)
 
-### Análisis IA
-![Análisis IA](public/screenshots/analisis-ia.png)
+### Análisis IA Presupuestos
+![Análisis IA](public/screenshots/analisis-ia-presupuestos.png)
+
+### Análisis IA Proceso
+![Análisis IA](public/screenshots/analisis-ia-proceso.png)
 
 ## Arquitectura Multiagente y Protocolos
 

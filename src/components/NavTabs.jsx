@@ -5,7 +5,6 @@ const tabs = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'transacciones', label: 'Transacciones', icon: 'creditCard' },
   { key: 'presupuestos', label: 'Presupuestos', icon: 'pieChart' },
-  { key: 'alertas', label: 'Alertas', icon: 'bell' },
   { key: 'analisis', label: 'Análisis IA', icon: 'brain' },
   { key: 'sistema', label: 'Sistema', icon: 'activity' },
 ];

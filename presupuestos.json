@@ -1,0 +1,387 @@
+{
+    "status": "success",
+    "plan": {
+        "status": "plan_created",
+        "plan": {
+            "subtareas": [
+                {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones del usuario con ID 6 para el periodo actual.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance actual del usuario con ID 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                {
+                    "id": 3,
+                    "tipo": "consultar_historico",
+                    "descripcion": "Consultar datos históricos de presupuestos y gastos del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 4,
+                    "tipo": "verificar_presupuestos",
+                    "descripcion": "Verificar si los gastos actuales del usuario con ID 6 se encuentran dentro del presupuesto definido.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                {
+                    "id": 5,
+                    "tipo": "analizar_gastos",
+                    "descripcion": "Analizar los gastos del usuario con ID 6 para identificar posibles áreas de mejora o patrones de gasto inusuales.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                {
+                    "id": 6,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas si se detectan sobrepasos de presupuesto o patrones de gasto inusuales para el usuario con ID 6.",
+                    "agente": "Notificador",
+                    "prioridad": "media"
+                },
+                {
+                    "id": 7,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear un reporte con la información del presupuesto y los gastos del usuario con ID 6 para su visualización.",
+                    "agente": "Interfaz",
+                    "prioridad": "baja"
+                }
+            ],
+            "estrategia": "La estrategia consiste en recopilar los datos de transacciones y presupuestos del usuario, calcular el balance actual, verificar si los gastos se ajustan al presupuesto, analizar los gastos para identificar patrones, generar alertas en caso de anomalías y formatear un reporte para presentar la información al usuario."
+        },
+        "task_results": [
+            {
+                "tarea": {
+                    "id": 1,
+                    "tipo": "recopilar_transacciones",
+                    "descripcion": "Recopilar todas las transacciones del usuario con ID 6 para el periodo actual.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "alta"
+                },
+                "response": {
+                    "status": "query_completed",
+                    "result": {
+                        "message_id": "KB_1763837402.184821",
+                        "protocol": "MCP",
+                        "content_type": "transaction_query_result",
+                        "data": {
+                            "usuario_id": null,
+                            "periodo": {
+                                "inicio": "2025-10-23T18:50:02.184830",
+                                "fin": "2025-11-22T18:50:02.184844"
+                            },
+                            "transacciones": [],
+                            "total_count": 0,
+                            "filters_applied": {
+                                "categoria": null,
+                                "tipo": null
+                            }
+                        },
+                        "timestamp": "2025-11-22T18:50:02.184851"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 2,
+                    "tipo": "calcular_balance",
+                    "descripcion": "Calcular el balance actual del usuario con ID 6 basado en las transacciones recopiladas.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                "response": {
+                    "status": "balance_calculated",
+                    "resultado": {
+                        "ingresos_totales": 0.0,
+                        "gastos_totales": 0.0,
+                        "balance": 0.0,
+                        "total_transacciones": 0,
+                        "gastos_por_categoria": {},
+                        "analisis_ia": {
+                            "evaluacion_general": "No se puede realizar una evaluación financiera detallada ya que no se proporcionaron datos reales de ingresos y gastos para el análisis. La información suministrada está vacía, impidiendo cualquier cálculo o identificación de patrones.",
+                            "puntos_criticos": [
+                                "Falta total de datos financieros para el período de 30 días, lo que imposibilita cualquier tipo de análisis.",
+                                "No es posible identificar categorías de gastos, comparar con ingresos o detectar problemas sin información transaccional."
+                            ],
+                            "recomendaciones": [
+                                "Para obtener un análisis significativo, por favor, proporciona los datos financieros completos y detallados, incluyendo ingresos y gastos categorizados, montos y fechas para el período de los últimos 30 días.",
+                                "Asegúrate de incluir el ingreso mensual declarado para poder realizar una comparación adecuada."
+                            ],
+                            "tendencia": "indeterminada"
+                        }
+                    },
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 3,
+                    "tipo": "consultar_historico",
+                    "descripcion": "Consultar datos históricos de presupuestos y gastos del usuario con ID 6.",
+                    "agente": "KnowledgeBase",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "historical_analysis_completed",
+                    "result": {
+                        "message_id": "KB_1763837412.108961",
+                        "protocol": "MCP",
+                        "content_type": "historical_analysis",
+                        "data": {
+                            "patrones_gasto": {},
+                            "tendencias_ingreso": {},
+                            "anomalias": [],
+                            "predicciones": {},
+                            "analisis_ia": "No se puede realizar el análisis de patrones históricos financieros para el usuario \"None\" porque no se han proporcionado datos de transacciones. Para realizar un análisis significativo, necesito acceso a los registros de ingresos y gastos del usuario durante el período especificado.\n\nA continuación, se devuelve la estructura JSON solicitada con un mensaje indicando la falta de datos:\n\n```json\n{\n    \"estado_analisis\": \"Error: Datos Insuficientes\",\n    \"mensaje_general\": \"No se puede realizar el análisis de patrones históricos financieros para el usuario 'None' porque no se han proporcionado datos de transacciones. Para realizar un análisis significativo, necesito acceso a los registros de ingresos y gastos del usuario durante el período especificado.\",\n    \"patrones_gasto\": {\n        \"estado\": \"No disponible\",\n        \"razon\": \"No hay datos de gasto para el usuario 'None'.\"\n    },\n    \"tendencias_ingreso\": {\n        \"estado\": \"No disponible\",\n        \"razon\": \"No hay datos de ingreso para el usuario 'None'.\"\n    },\n    \"anomalias\": [],\n    \"predicciones\": {\n        \"estado\": \"No disponible\",\n        \"razon\": \"Imposible generar predicciones sin datos históricos de transacciones para el usuario 'None'.\"\n    },\n    \"siguiente_paso\": \"Por favor, proporciona los datos financieros históricos (ingresos, gastos, fechas, categorías, montos) asociados a un usuario específico para poder realizar el análisis solicitado.\"\n}"
+                        },
+                        "timestamp": "2025-11-22T18:50:12.108978"
+                    },
+                    "protocol_used": "MCP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 4,
+                    "tipo": "verificar_presupuestos",
+                    "descripcion": "Verificar si los gastos actuales del usuario con ID 6 se encuentran dentro del presupuesto definido.",
+                    "agente": "Ejecutor",
+                    "prioridad": "alta",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                "response": {
+                    "status": "budgets_verified",
+                    "resultado": {
+                        "presupuestos": [
+                            {
+                                "categoria": "alimentacion",
+                                "limite": 200.0,
+                                "gastado": 44710.0,
+                                "porcentaje": 22355.0,
+                                "estado": "excedido"
+                            },
+                            {
+                                "categoria": "salud",
+                                "limite": 34.0,
+                                "gastado": 40000.0,
+                                "porcentaje": 117647.06,
+                                "estado": "excedido"
+                            },
+                            {
+                                "categoria": "vivienda",
+                                "limite": 2.0,
+                                "gastado": 0.0,
+                                "porcentaje": 0.0,
+                                "estado": "dentro"
+                            }
+                        ],
+                        "analisis_ia": "El análisis de los presupuestos reales del usuario revela una situación financiera extremadamente crítica y desequilibrada, especialmente en dos categorías principales. En la categoría **alimentacion**, se ha establecido un límite de 200.0, pero el gasto real asciende a 44710.0, lo que representa un exorbitante 22355.0% del presupuesto. Esto indica un sobregasto masivo y completamente insostenible, sugiriendo una desconexión total entre el límite presupuestado y la realidad de los gastos, o un error significativo en la configuración del límite. De manera aún más alarmante, la categoría de **salud** tiene un límite de 34.0, mientras que el gasto real es de 40000.0, resultando en un 117647.06% del presupuesto. Este nivel de sobregasto es catastrófico y supera con creces cualquier expectativa razonable, lo que hace imperativo una revisión inmediata y profunda. Finalmente, la categoría de **vivienda** muestra un límite de 2.0 y un gasto de 0.0, lo que la sitúa \"dentro\" del presupuesto. Sin embargo, el límite de 2.0 para vivienda es extremadamente bajo y poco realista para la mayoría de las situaciones, lo que podría indicar que esta categoría no está configurada para cubrir los gastos principales de vivienda o que hay un error en su definición. En resumen, el usuario está experimentando un sobregasto crítico y descontrolado en las categorías de alimentación y salud, lo que requiere una intervención urgente y una reestructuración completa de su enfoque presupuestario.",
+                        "recomendaciones": [
+                            "**Revisar y Ajustar Límites de Presupuesto Urgente:** Los límites actuales para 'alimentacion' (200.0) y 'salud' (34.0) son completamente irrealistas frente a los gastos reales (44710.0 y 40000.0, respectivamente). Es crucial establecer límites que reflejen los gastos esperados o deseados de manera realista. Para 'vivienda', el límite de 2.0 también debe ser revisado si se espera que cubra gastos significativos.",
+                            "**Identificar la Causa del Sobregasto Masivo:** Es vital investigar por qué los gastos en 'alimentacion' y 'salud' son tan desproporcionados. ¿Se trata de gastos únicos y extraordinarios, errores en el registro, o gastos recurrentes que no se tuvieron en cuenta? Entender la raíz del problema es el primer paso para solucionarlo.",
+                            "**Implementar un Seguimiento de Gastos Riguroso:** Dado el nivel de sobregasto, es fundamental registrar cada gasto de forma continua y compararlo con el presupuesto para evitar sorpresas y tomar acciones correctivas a tiempo. Utilizar aplicaciones o hojas de cálculo para este fin puede ser muy útil.",
+                            "**Priorizar la Reducción de Gastos en 'Salud' y 'Alimentacion':** Una vez identificadas las causas, se deben buscar activamente formas de reducir estos gastos. Esto podría incluir planificar comidas, cocinar en casa, buscar alternativas más económicas en alimentación, y revisar planes de seguro o buscar opciones más costeables para servicios de salud.",
+                            "**Considerar un Presupuesto de Base Cero:** Para empezar de nuevo y tomar control, podría ser beneficioso asignar cada unidad monetaria a una categoría específica, asegurándose de que el total de gastos planificados no exceda los ingresos disponibles. Esto fuerza una revisión exhaustiva de cada gasto.",
+                            "**Establecer un Fondo de Emergencia:** Un fondo de emergencia puede ayudar a cubrir gastos inesperados, especialmente en salud, sin desequilibrar el presupuesto mensual y evitar recurrir a deudas.",
+                            "**Revisión Periódica del Presupuesto:** Los presupuestos no son estáticos. Deben revisarse y ajustarse regularmente (mensual o trimestralmente) para adaptarse a los cambios en los ingresos, gastos o prioridades."
+                        ]
+                    },
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 5,
+                    "tipo": "analizar_gastos",
+                    "descripcion": "Analizar los gastos del usuario con ID 6 para identificar posibles áreas de mejora o patrones de gasto inusuales.",
+                    "agente": "Ejecutor",
+                    "prioridad": "media",
+                    "presupuestos_reales": [
+                        {
+                            "categoria": "alimentacion",
+                            "limite": 200.0,
+                            "gastado": 44710.0,
+                            "porcentaje": 22355.0
+                        },
+                        {
+                            "categoria": "salud",
+                            "limite": 34.0,
+                            "gastado": 40000.0,
+                            "porcentaje": 117647.06
+                        },
+                        {
+                            "categoria": "vivienda",
+                            "limite": 2.0,
+                            "gastado": 0.0,
+                            "porcentaje": 0.0
+                        }
+                    ],
+                    "tiene_datos": true
+                },
+                "response": {
+                    "status": "expenses_analyzed",
+                    "analisis": "{\n  \"usuario\": \"None\",\n  \"estado_analisis\": \"Datos_insuficientes\",\n  \"mensaje_explicacion\": \"El usuario especificado es 'None', lo que indica que no se proporcionaron datos de transacciones o que el usuario no existe en el sistema para realizar un análisis de patrones de gasto. Para poder llevar a cabo este análisis, es imprescindible contar con un historial de transacciones que incluya al menos la fecha, el monto y una categoría o descripción del gasto. Sin estos datos, no es posible identificar categorías, tendencias, gastos atípicos ni oportunidades de ahorro.\",\n  \"analisis_solicitado\": {\n    \"1_categorias_mayor_gasto\": {\n      \"estado\": \"No disponible\",\n      \"razon\": \"No hay datos de transacciones para identificar y agrupar gastos por categoría. Se requiere un conjunto de transacciones con una clasificación clara (ej. alimentación, transporte, vivienda, entretenimiento).\"\n    },\n    \"2_tendencias_gasto\": {\n      \"estado\": \"No disponible\",\n      \"razon\": \"La identificación de tendencias requiere una serie temporal de datos de gasto a lo largo del tiempo (ej. mensual, trimestral). Sin transacciones, no se puede observar cómo evoluciona el gasto.\"\n    },\n    \"3_gastos_inusuales_atipicos\": {\n      \"estado\": \"No disponible\",\n      \"razon\": \"Para detectar gastos inusuales o atípicos, se necesita un patrón de gasto histórico contra el cual comparar nuevas transacciones. La ausencia de datos impide establecer una línea base o identificar desviaciones significativas.\"\n    },\n    \"4_oportunidades_ahorro\": {\n      \"estado\": \"No disponible\",\n      \"razon\": \"Las oportunidades de ahorro se identifican al analizar el gasto en categorías específicas, compararlo con promedios, presupuestos o identificar gastos no esenciales. Sin datos de gasto, no es posible ofrecer recomendaciones.\"\n    }\n  },\n  \"acciones_recomendadas_para_futuro\": [\n    \"Proporcionar datos de transacciones para el usuario deseado, asegurándose de que cada transacción incluya al menos: fecha, monto y una descripción o categoría.\",\n    \"Si el usuario 'None' es un marcador de posición, reemplazarlo con un identificador de usuario válido que tenga datos asociados.\",\n    \"Especificar el período de tiempo sobre el cual se desea realizar el análisis de gasto.\"\n  ]\n}",
+                    "protocol_used": "ACP"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 6,
+                    "tipo": "generar_alertas",
+                    "descripcion": "Generar alertas si se detectan sobrepasos de presupuesto o patrones de gasto inusuales para el usuario con ID 6.",
+                    "agente": "Notificador",
+                    "prioridad": "media"
+                },
+                "response": {
+                    "status": "alert_created",
+                    "alerta": {
+                        "titulo": "Tarea Completada: Monitoreo de Gastos Usuario 6",
+                        "mensaje": "Se ha completado la tarea de monitoreo de gastos y detección de anomalías para el usuario con ID 6.  El sistema ahora generará alertas si se detectan sobrepasos de presupuesto o patrones de gasto inusuales. Esté atento a nuevas notificaciones.",
+                        "nivel": "info",
+                        "recomendacion": "Revisar periódicamente las alertas generadas para el usuario ID 6 y tomar las acciones correctivas necesarias."
+                    },
+                    "protocol_used": "A2A"
+                }
+            },
+            {
+                "tarea": {
+                    "id": 7,
+                    "tipo": "formatear_reporte",
+                    "descripcion": "Formatear un reporte con la información del presupuesto y los gastos del usuario con ID 6 para su visualización.",
+                    "agente": "Interfaz",
+                    "prioridad": "baja"
+                },
+                "response": {
+                    "status": "dashboard_created",
+                    "ui_data": {
+                        "resumen": {
+                            "balance": 0,
+                            "ingresos": 0,
+                            "gastos": 0
+                        },
+                        "presupuestos": [],
+                        "alertas": [],
+                        "tendencias": "Sin datos suficientes",
+                        "recomendaciones": []
+                    },
+                    "protocol_used": "AGUI"
+                }
+            }
+        ],
+        "protocol_used": "ANP"
+    },
+    "protocol_used": "ANP",
+    "agent": "Planificador",
+    "message": "Plan de verificación creado y subtareas ejecutadas por los agentes. Revisa 'task_results' para resultados individuales."
+}

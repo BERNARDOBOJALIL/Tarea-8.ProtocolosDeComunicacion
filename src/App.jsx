@@ -6,7 +6,6 @@ import NavTabs from './components/NavTabs';
 import UsersView from './views/UsersView';
 import TransactionsView from './views/TransactionsView';
 import BudgetsView from './views/BudgetsView';
-import AlertsView from './views/AlertsView';
 import DashboardView from './views/DashboardView';
 import SystemStatusView from './views/SystemStatusView';
 import AnalysisView from './views/AnalysisView';
@@ -62,9 +61,6 @@ function App() {
         </section>
         <section style={{ display: activeTab === 'presupuestos' ? 'block' : 'none' }} aria-hidden={activeTab !== 'presupuestos'}>
           <BudgetsView userId={currentUser.id} />
-        </section>
-        <section style={{ display: activeTab === 'alertas' ? 'block' : 'none' }} aria-hidden={activeTab !== 'alertas'}>
-          <AlertsView userId={currentUser.id} />
         </section>
         <section style={{ display: activeTab === 'analisis' ? 'block' : 'none' }} aria-hidden={activeTab !== 'analisis'}>
           <AnalysisView userId={currentUser.id} />

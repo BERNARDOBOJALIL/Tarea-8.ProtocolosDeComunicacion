@@ -83,9 +83,14 @@ export const api = {
   createBudget: (data) => request('/presupuestos', { method: 'POST', body: JSON.stringify(data) }),
 
   // ALERTS
-  listAlerts: (query = {}) => {
+  listAlerts: async (query = {}) => {
     const params = new URLSearchParams(query).toString();
-    return request(`/alertas${params ? `?${params}` : ''}`);
+    const path = `/alertas${params ? `?${params}` : ''}`;
+    const res = await request(path);
+    if (import.meta?.env?.DEV) {
+      console.log('[API] GET', path, { query, response: res });
+    }
+    return res;
   },
   markAlertRead: (id) => request(`/alertas/${id}/marcar-leida`, { method: 'PATCH' }),
 
